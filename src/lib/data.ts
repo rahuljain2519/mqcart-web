@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   query,
   where,
@@ -218,7 +219,10 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
 /* ----------------------------- Seller applications --------------------------- */
 
 export async function submitSellerApplication(app: Omit<SellerApplication, "createdAt" | "status">) {
-  return addDoc(collection(db, "seller_applications"), {
+  // Doc ID MUST be the applicant's uid: security rules and the mobile app both
+  // address this collection as seller_applications/{uid}. Using addDoc() here
+  // produces a random ID that the rules' `isOwner(uid)` check rejects.
+  return setDoc(doc(db, "seller_applications", app.uid), {
     ...app,
     status: "pending",
     createdAt: serverTimestamp(),
@@ -239,14 +243,19 @@ export async function decideSellerApplication(
   uid: string,
   decision: "approved" | "rejected"
 ) {
-  const snap = await getDocs(
-    query(collection(db, "seller_applications"), where("uid", "==", uid), fsLimit(1))
+  // seller_applications is keyed by uid (see submitSellerApplication).
+  await updateDoc(doc(db, "seller_applications", uid), { status: decision });
+
+  // Mirror the mobile app's approveSeller/rejectSeller exactly so the shared
+  // mobile onboarding flow still works: approval must land on sellerStatus
+  // "approved" (not "active") — SellerGuard.needsOnboarding and the rules'
+  // shopIdSafe() guard both key off "approved".
+  await updateDoc(
+    doc(db, "users", uid),
+    decision === "approved"
+      ? { role: "seller", sellerStatus: "approved", shopId: null }
+      : { sellerStatus: "rejected" }
   );
-  if (snap.empty) return;
-  await updateDoc(snap.docs[0].ref, { status: decision });
-  await updateDoc(doc(db, "users", uid), {
-    sellerStatus: decision === "approved" ? "active" : "inactive",
-  });
 }
 
 /* ----------------------------------- Admin ----------------------------------- */

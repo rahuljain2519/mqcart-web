@@ -1,0 +1,311 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* =========================================================
+       🔧 HELPER FUNCTIONS
+       ========================================================= */
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.role == 'admin';
+    }
+
+    /* =========================================================
+       🔐 SAFE FIELD TRANSITION GUARDS (PARTIAL UPDATE SAFE)
+       ========================================================= */
+
+    // 🔹 role: user cannot change, admin can
+    function roleSafe() {
+      return
+        !('role' in request.resource.data)
+        || request.resource.data.role == resource.data.role
+        || isAdmin();
+    }
+
+    // 🔹 shopId: admin only
+    function shopIdSafe() {
+      return
+        // document does not exist yet
+        !exists(resource)
+
+        // field not being touched
+        || !('shopId' in request.resource.data)
+
+        // both missing / null
+        || (
+          !('shopId' in resource.data)
+          && request.resource.data.shopId == null
+        )
+
+        // unchanged value
+        || request.resource.data.shopId == resource.data.shopId
+
+        // ✅ ALLOW APPROVED SELLER TO SET shopId ONCE
+        || (
+          resource.data.role == 'seller'
+          && resource.data.sellerStatus == 'approved'
+          && resource.data.shopId == null
+        )
+
+        // admin override
+        || isAdmin();
+    }
+
+    // 🔹 sellerStatus: state-aware
+    function sellerStatusSafe(userId) {
+      return
+        // field not touched
+        !('sellerStatus' in request.resource.data)
+
+        // no change
+        || request.resource.data.sellerStatus == resource.data.sellerStatus
+
+        // user applies to become seller (missing / none / empty → pending)
+        || (
+          isOwner(userId)
+          && (
+            !('sellerStatus' in resource.data)
+            || resource.data.sellerStatus in ['none', null, '', 'rejected']
+          )
+          && request.resource.data.sellerStatus == 'pending'
+        )
+
+        // admin override
+        || isAdmin();
+    }
+
+    /* =========================================================
+       👤 USERS COLLECTION (FINAL)
+       ========================================================= */
+
+    match /users/{userId} {
+
+      // 👁 Read basic profile for any signed-in user (needed for orders)
+      allow read: if isSignedIn();
+
+      // 🆕 Create own profile (first login)
+      allow create: if isOwner(userId);
+
+      // ✏️ Update (PARTIAL UPDATE SAFE)
+      allow update: if
+        (
+          isOwner(userId)
+          && roleSafe()
+          && shopIdSafe()
+          && sellerStatusSafe(userId)
+        )
+        || isAdmin();
+
+      // 🗑 Delete (admin only)
+      allow delete: if isAdmin();
+    }
+
+    /* =========================================================
+       🏘 SOCIETIES (PUBLIC READ, ADMIN WRITE)
+       ========================================================= */
+
+    match /societies/{societyId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /societies/{societyId}/sellers/{sellerId} {
+
+      // 👤 Seller can write ONLY their own document
+      allow create, update: if isSignedIn()
+        && request.auth.uid == sellerId;
+
+      // 👤 Seller can read their own document
+      allow read: if isSignedIn()
+        && request.auth.uid == sellerId;
+
+      // 👑 Admin full access
+      allow read, write, delete: if isAdmin();
+    }
+
+    /* =========================================================
+       🏪 SHOPS
+       ========================================================= */
+
+    match /shops/{shopId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    /* =========================================================
+       📄 SELLER SUBSCRIPTIONS (SOURCE OF TRUTH)
+       ========================================================= */
+
+    match /seller_subscriptions/{sellerId} {
+
+      // 👤 Seller can read their own subscription
+      allow read: if isSignedIn()
+        && request.auth.uid == sellerId;
+
+      // 👤 Seller can create/update ONLY their own subscription
+      allow create, update: if isSignedIn()
+        && request.auth.uid == sellerId;
+
+      // ❌ No deletes from client
+      allow delete: if false;
+    }
+
+    /* =========================================================
+       📦 PRODUCTS
+       ========================================================= */
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    /* ---------------------------
+       PLATFORM CONFIG (READ-ONLY)
+     --------------------------- */
+    match /platform_config/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // or admin only
+    }
+
+    /* =========================================================
+       📝 SELLER APPLICATIONS
+       ========================================================= */
+
+    match /seller_applications/{uid} {
+
+      // 👤 CREATE: owner only (resource does not exist yet)
+      allow create: if isOwner(uid);
+
+      // 👤 READ: owner
+      allow read: if isOwner(uid);
+
+      // 👤 UPDATE: only while pending (resource exists)
+      allow update: if isOwner(uid)
+        && resource != null
+        && resource.data.status in ['pending', 'rejected'];
+
+      // 👑 Admin override
+      allow read, update, delete: if isAdmin();
+    }
+
+    /* =========================================================
+       📦 ORDERS
+       ---------------------------------------------------------
+       Tightened 2026-09-04: previously `read, write: if isSignedIn()`
+       which let any signed-in user read/modify every order
+       (buyer names, flat numbers, phone numbers). Now scoped to
+       the order's buyer, the order's seller, or an admin.
+
+       Verified against existing mobile queries, all of which are
+       constrained by buyerId == uid or sellerId == uid:
+         - streamOrdersByBuyer / streamOrdersBySeller
+         - seller_home today/all order snapshots
+         - updateOrderStatus (seller)
+         - checkout placeOrder (buyerId == uid on create)
+       Cloud Functions use the Admin SDK and bypass these rules.
+       ========================================================= */
+
+    match /orders/{orderId} {
+
+      // get + list: only the buyer, the seller, or an admin.
+      // Queries must be constrained by buyerId/sellerId to satisfy list.
+      allow read: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid
+        || resource.data.sellerId == request.auth.uid
+        || isAdmin()
+      );
+
+      // Buyer places their own order.
+      allow create: if isSignedIn()
+        && request.resource.data.buyerId == request.auth.uid;
+
+      // Buyer (cancel) or seller (status) or admin.
+      allow update: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid
+        || resource.data.sellerId == request.auth.uid
+        || isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    /* =========================================================
+       💳 SELLER PAYMENTS (CLIENT → CF VERIFIED)
+       ========================================================= */
+
+    match /seller_activation_payments/{paymentId} {
+
+      // Seller creates their own payment document
+      allow create: if isSignedIn()
+        && request.resource.data.sellerId == request.auth.uid;
+
+      // Seller can read their own payments
+      allow read: if isSignedIn()
+        && resource.data.sellerId == request.auth.uid;
+
+      // Seller can update ONLY frontend payment outcome fields
+      allow update: if isSignedIn()
+        && resource.data.sellerId == request.auth.uid
+        && request.resource.data.diff(resource.data)
+             .affectedKeys()
+             .hasOnly([
+               // success path
+               'status',
+               'razorpayPaymentId',
+               'razorpayOrderId',
+               'paidAt',
+               'capturedAt',
+               // failure path
+               'failureReason',
+               'failedAt'
+             ]);
+
+      // No deletes from client
+      allow delete: if false;
+    }
+
+    /* =========================================================
+       📊 ANALYTICS (ADMIN READ-ONLY)
+       ========================================================= */
+
+    match /analytics_overview/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /analytics_orders/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /analytics_sellers/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /analytics_buyers/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /analytics_products/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /analytics_societies/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}
