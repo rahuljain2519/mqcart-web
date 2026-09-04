@@ -73,15 +73,27 @@ export default function NavBar() {
           )}
 
           {firebaseUser ? (
-            <button
-              onClick={async () => {
-                await signOut();
-                router.push("/");
-              }}
-              className="text-sm text-ink/60 hover:text-ink"
-            >
-              Sign out
-            </button>
+            <>
+              <Link
+                href="/profile"
+                className={
+                  pathname === "/profile"
+                    ? "text-sm text-accent-ink font-medium"
+                    : "text-sm text-ink/80 hover:text-ink"
+                }
+              >
+                {profile?.name?.split(" ")[0] || "Profile"}
+              </Link>
+              <button
+                onClick={async () => {
+                  await signOut();
+                  router.push("/");
+                }}
+                className="text-sm text-ink/60 hover:text-ink"
+              >
+                Sign out
+              </button>
+            </>
           ) : (
             <Link
               href="/login"

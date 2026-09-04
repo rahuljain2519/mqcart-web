@@ -34,3 +34,22 @@ export async function uploadProductImages(
   }
   return urls;
 }
+
+/**
+ * Seller KYC document (PAN / Aadhaar / GST). Same path as the app's
+ * SellerApplicationScreen: seller_documents/{societyId}/{sellerId}/{docType}.{ext}
+ */
+export async function uploadSellerDocument(
+  societyId: string,
+  sellerId: string,
+  docType: "pan" | "aadhaar" | "gst",
+  file: File
+): Promise<string> {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const r = ref(
+    storage,
+    `seller_documents/${societyId}/${sellerId}/${docType}.${ext}`
+  );
+  await uploadBytes(r, file, { contentType: file.type || "application/octet-stream" });
+  return getDownloadURL(r);
+}

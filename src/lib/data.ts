@@ -676,6 +676,20 @@ export async function listSellerApplications(status?: SellerApplication["status"
   });
 }
 
+/** Record a seller KYC document URL, mirroring the app's _saveDocumentUrl. */
+export async function saveSellerDocumentUrl(
+  societyId: string,
+  sellerId: string,
+  docType: "pan" | "aadhaar" | "gst",
+  url: string
+) {
+  return setDoc(
+    doc(db, "societies", societyId, "sellers", sellerId),
+    { documents: { [docType]: url }, documentStatus: "pending" },
+    { merge: true }
+  );
+}
+
 export async function decideSellerApplication(
   uid: string,
   decision: "approved" | "rejected"

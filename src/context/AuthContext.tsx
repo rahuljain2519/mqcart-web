@@ -15,7 +15,7 @@ import {
   type ConfirmationResult,
   type User,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { getUser } from "@/lib/data";
 import type { AppUser } from "@/types";
@@ -43,6 +43,12 @@ interface AuthContextValue {
   verifyOtp: (code: string) => Promise<{ needsProfile: boolean }>;
   /** Create/merge the users/{uid} doc for a first-time user. */
   completeProfile: (input: CompleteProfileInput) => Promise<void>;
+  /** Edit name / society / flat on an existing profile (never touches role). */
+  updateProfile: (input: {
+    name: string;
+    societyId: string;
+    flatNumber: string;
+  }) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -126,7 +132,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const completeProfile: AuthContextValue["completeProfile"] = async (input) => {
     const u = auth.currentUser;
     if (!u) throw new Error("Not signed in.");
-    // merge: an existing mobile user may already have role/sellerStatus/shopId.
+
+    // Only seed role/sellerStatus/shopId when the doc doesn't exist yet — never
+    // clobber an existing (e.g. mobile-created) seller/admin.
+    const existing = await getDoc(doc(db, "users", u.uid));
+    const seed = existing.exists()
+      ? {}
+      : { role: "buyer", sellerStatus: "none", shopId: null };
+
     await setDoc(
       doc(db, "users", u.uid),
       {
@@ -136,14 +149,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: u.phoneNumber ?? input.phone.trim(),
         societyId: input.societyId,
         flatNumber: input.flatNumber.trim(),
-        role: "buyer",
-        sellerStatus: "none",
-        shopId: null,
+        ...seed,
         profileCompleted: true,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
+    await loadProfile(u.uid);
+  };
+
+  const updateProfile: AuthContextValue["updateProfile"] = async (input) => {
+    const u = auth.currentUser;
+    if (!u) throw new Error("Not signed in.");
+    await updateDoc(doc(db, "users", u.uid), {
+      name: input.name.trim(),
+      societyId: input.societyId,
+      flatNumber: input.flatNumber.trim(),
+      updatedAt: serverTimestamp(),
+    });
     await loadProfile(u.uid);
   };
 
@@ -164,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sendOtp,
         verifyOtp,
         completeProfile,
+        updateProfile,
         signOut,
         refreshProfile,
       }}

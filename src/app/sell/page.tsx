@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { submitSellerApplication } from "@/lib/data";
+import { submitSellerApplication, saveSellerDocumentUrl } from "@/lib/data";
+import { uploadSellerDocument } from "@/lib/storage";
 import { updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -46,6 +47,11 @@ export default function SellPage() {
     ifscCode: "",
     bankName: "",
   });
+  const [docs, setDocs] = useState<{
+    pan: File | null;
+    aadhaar: File | null;
+    gst: File | null;
+  }>({ pan: null, aadhaar: null, gst: null });
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +121,16 @@ export default function SellPage() {
         ifscCode: form.ifscCode.trim().toUpperCase() || undefined,
         bankName: form.bankName.trim() || undefined,
       });
+      // KYC documents (optional) — same Storage path + subcollection as the app.
+      if (profile.societyId) {
+        for (const t of ["pan", "aadhaar", "gst"] as const) {
+          const f = docs[t];
+          if (!f) continue;
+          const url = await uploadSellerDocument(profile.societyId, profile.uid, t, f);
+          await saveSellerDocumentUrl(profile.societyId, profile.uid, t, url);
+        }
+      }
+
       await updateDoc(doc(db, "users", profile.uid), { sellerStatus: "pending" });
       await refreshProfile();
       setSubmitted(true);
@@ -161,6 +177,22 @@ export default function SellPage() {
           />
         </div>
         <Text label="GSTIN (optional)" value={form.gstin} onChange={set("gstin")} />
+
+        <div className="border-t border-line pt-4 space-y-3">
+          <p className="text-sm text-muted">Documents (image or PDF — optional)</p>
+          <DocInput
+            label="PAN card"
+            onChange={(f) => setDocs((d) => ({ ...d, pan: f }))}
+          />
+          <DocInput
+            label="Aadhaar card"
+            onChange={(f) => setDocs((d) => ({ ...d, aadhaar: f }))}
+          />
+          <DocInput
+            label="GST certificate"
+            onChange={(f) => setDocs((d) => ({ ...d, gst: f }))}
+          />
+        </div>
 
         <div className="border-t border-line pt-4">
           <Text label="Address" value={form.addressLine} onChange={set("addressLine")} required />
@@ -216,6 +248,26 @@ function Text({
         required={required}
         maxLength={maxLength}
         className="w-full border border-line rounded-xl px-3 py-2 bg-surface"
+      />
+    </label>
+  );
+}
+
+function DocInput({
+  label,
+  onChange,
+}: {
+  label: string;
+  onChange: (f: File | null) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-sm">
+      <span className="text-ink/70">{label}</span>
+      <input
+        type="file"
+        accept="image/*,application/pdf"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        className="text-sm max-w-[60%]"
       />
     </label>
   );
