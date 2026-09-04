@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
-import { getShop, watchProductsByShop } from "@/lib/data";
+import { watchShopById, watchProductsByShop } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CartBar from "@/components/CartBar";
 import type { Shop, Product } from "@/types";
@@ -13,17 +13,20 @@ function ShopDetail() {
   const { shopId } = useParams<{ shopId: string }>();
   const { singleShopId } = useCart();
 
-  const [shop, setShop] = useState<Shop | null>(null);
+  const [shop, setShop] = useState<Shop | null | undefined>(undefined);
   const [products, setProducts] = useState<Product[] | null>(null);
-  const [loadingShop, setLoadingShop] = useState(true);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const loadingShop = shop === undefined;
 
   useEffect(() => {
     if (!shopId) return;
-    getShop(shopId).then(setShop).finally(() => setLoadingShop(false));
-    const unsub = watchProductsByShop(shopId, setProducts);
-    return () => unsub();
+    const unsubShop = watchShopById(shopId, setShop);
+    const unsubProducts = watchProductsByShop(shopId, setProducts);
+    return () => {
+      unsubShop();
+      unsubProducts();
+    };
   }, [shopId]);
 
   const shown = useMemo(() => {

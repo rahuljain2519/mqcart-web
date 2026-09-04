@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
-import { getProduct, getShop } from "@/lib/data";
+import { watchProduct, watchShopById } from "@/lib/data";
 import type { Product, Shop } from "@/types";
 
 function ProductDetail() {
@@ -18,15 +18,22 @@ function ProductDetail() {
   const [active, setActive] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Live product (price / stock / availability update while the page is open).
   useEffect(() => {
     if (!productId) return;
-    getProduct(productId)
-      .then(async (p) => {
-        setProduct(p);
-        if (p) setShop(await getShop(p.shopId));
-      })
-      .finally(() => setLoading(false));
+    const unsub = watchProduct(productId, (p) => {
+      setProduct(p);
+      setLoading(false);
+    });
+    return () => unsub();
   }, [productId]);
+
+  // Live shop header once we know the shopId.
+  useEffect(() => {
+    if (!product?.shopId) return;
+    const unsub = watchShopById(product.shopId, setShop);
+    return () => unsub();
+  }, [product?.shopId]);
 
   if (loading) {
     return <p className="mx-auto max-w-4xl px-5 py-16 text-muted">Loading…</p>;

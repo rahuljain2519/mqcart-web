@@ -361,6 +361,15 @@ const mapProducts = (docs: { id: string; data: () => unknown }[]): Product[] =>
 const mapShops = (docs: { id: string; data: () => unknown }[]): Shop[] =>
   docs.map((s) => ({ shopId: s.id, ...(s.data() as Omit<Shop, "shopId">) }));
 
+export function watchProduct(
+  productId: string,
+  cb: (product: Product | null) => void
+) {
+  return onSnapshot(doc(db, "products", productId), (snap) =>
+    cb(snap.exists() ? ({ id: productId, ...snap.data() } as Product) : null)
+  );
+}
+
 export function watchShopsBySociety(
   societyId: string,
   cb: (shops: Shop[]) => void
@@ -674,6 +683,22 @@ export async function listSellerApplications(status?: SellerApplication["status"
     const d = s.data();
     return { ...(d as SellerApplication), createdAt: toDate(d.createdAt) };
   });
+}
+
+export function watchSellerApplications(
+  status: SellerApplication["status"] | undefined,
+  cb: (apps: SellerApplication[]) => void
+) {
+  const base = collection(db, "seller_applications");
+  const q = status ? query(base, where("status", "==", status)) : query(base);
+  return onSnapshot(q, (snap) =>
+    cb(
+      snap.docs.map((s) => {
+        const d = s.data();
+        return { ...(d as SellerApplication), createdAt: toDate(d.createdAt) };
+      })
+    )
+  );
 }
 
 /** Record a seller KYC document URL, mirroring the app's _saveDocumentUrl. */

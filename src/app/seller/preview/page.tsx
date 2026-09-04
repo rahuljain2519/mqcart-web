@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
-import { getShopBySeller, watchProductsByShop } from "@/lib/data";
+import { getShopBySeller, watchShopById, watchProductsByShop } from "@/lib/data";
 import type { Shop, Product } from "@/types";
 
 function Preview() {
@@ -14,12 +14,20 @@ function Preview() {
 
   useEffect(() => {
     if (!profile?.uid) return;
-    let unsub = () => {};
+    let unsubShop = () => {};
+    let unsubProducts = () => {};
     getShopBySeller(profile.uid).then((s) => {
-      setShop(s);
-      if (s) unsub = watchProductsByShop(s.shopId, setProducts);
+      if (!s) {
+        setShop(null);
+        return;
+      }
+      unsubShop = watchShopById(s.shopId, setShop);
+      unsubProducts = watchProductsByShop(s.shopId, setProducts);
     });
-    return () => unsub();
+    return () => {
+      unsubShop();
+      unsubProducts();
+    };
   }, [profile?.uid]);
 
   const shown = useMemo(() => {
