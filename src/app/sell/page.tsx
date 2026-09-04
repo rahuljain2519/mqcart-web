@@ -5,21 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { submitSellerApplication, saveSellerDocumentUrl } from "@/lib/data";
 import { uploadSellerDocument } from "@/lib/storage";
+import { SHOP_CATEGORIES } from "@/lib/categories";
 import { updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-
-const CATEGORIES = [
-  "Grocery",
-  "Bakery",
-  "Snacks",
-  "Personal Care",
-  "Home & Utility",
-  "Stationary",
-  "Fashion",
-  "Food",
-  "Art & Decor",
-  "Other",
-];
 
 const BUSINESS_TYPES = [
   "Individual",
@@ -29,16 +17,20 @@ const BUSINESS_TYPES = [
   "LLP",
 ];
 
+// Individual & proprietorship trade on personal ID (PAN + Aadhaar).
+// Everything else is a registered entity — GSTIN + registration number instead.
+const isPersonalId = (t: string) => t === "Individual" || t === "Proprietorship";
+
 export default function SellPage() {
   const { profile, firebaseUser, refreshProfile } = useAuth();
   const [form, setForm] = useState({
     shopName: "",
     category: "",
-    description: "",
     businessType: "Individual",
     panNumber: "",
     aadhaar: "",
     gstin: "",
+    registrationNumber: "",
     addressLine: "",
     city: "",
     state: "",
@@ -50,8 +42,8 @@ export default function SellPage() {
   const [docs, setDocs] = useState<{
     pan: File | null;
     aadhaar: File | null;
-    gst: File | null;
-  }>({ pan: null, aadhaar: null, gst: null });
+    registration: File | null;
+  }>({ pan: null, aadhaar: null, registration: null });
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +80,8 @@ export default function SellPage() {
     );
   }
 
+  const personal = isPersonalId(form.businessType);
+
   const set =
     (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -98,21 +92,31 @@ export default function SellPage() {
     setBusy(true);
     setError(null);
     try {
-      if (!/^\d{12}$/.test(form.aadhaar)) {
-        throw new Error("Aadhaar must be 12 digits.");
-      }
       if (form.panNumber.trim().length !== 10) {
         throw new Error("Enter a valid 10-character PAN.");
       }
+      if (personal) {
+        if (!/^\d{12}$/.test(form.aadhaar)) {
+          throw new Error("Aadhaar must be 12 digits.");
+        }
+      } else {
+        if (form.gstin.trim().length < 15) {
+          throw new Error("GSTIN is required for a registered business.");
+        }
+      }
+
       await submitSellerApplication({
         uid: profile.uid,
         shopName: form.shopName.trim(),
         category: form.category,
-        description: form.description.trim(),
+        description: "",
         businessType: form.businessType,
         panNumber: form.panNumber.trim().toUpperCase(),
-        aadhaarLast4: form.aadhaar.slice(-4),
+        aadhaarLast4: personal ? form.aadhaar.slice(-4) : "",
         gstin: form.gstin.trim() || undefined,
+        registrationNumber: personal
+          ? undefined
+          : form.registrationNumber.trim() || undefined,
         addressLine: form.addressLine.trim(),
         city: form.city.trim(),
         state: form.state.trim(),
@@ -121,10 +125,15 @@ export default function SellPage() {
         ifscCode: form.ifscCode.trim().toUpperCase() || undefined,
         bankName: form.bankName.trim() || undefined,
       });
+
       // KYC documents (optional) — same Storage path + subcollection as the app.
       if (profile.societyId) {
-        for (const t of ["pan", "aadhaar", "gst"] as const) {
-          const f = docs[t];
+        const uploads: [("pan" | "aadhaar" | "gst"), File | null][] = [
+          ["pan", docs.pan],
+          ["aadhaar", personal ? docs.aadhaar : null],
+          ["gst", !personal ? docs.registration : null],
+        ];
+        for (const [t, f] of uploads) {
           if (!f) continue;
           const url = await uploadSellerDocument(profile.societyId, profile.uid, t, f);
           await saveSellerDocumentUrl(profile.societyId, profile.uid, t, url);
@@ -145,19 +154,18 @@ export default function SellPage() {
     <div className="mx-auto max-w-xl px-5 py-12">
       <h1 className="font-display text-3xl mb-1">Sell in your society</h1>
       <p className="text-muted mb-8">
-        Tell us about your shop. An admin reviews every application before it goes live.
+        An admin reviews every application before your shop goes live.
       </p>
 
       <form onSubmit={submit} className="space-y-4">
         <Text label="Shop name" value={form.shopName} onChange={set("shopName")} required />
         <Select
-          label="Category"
+          label="What do you sell?"
           value={form.category}
           onChange={set("category")}
-          options={CATEGORIES}
+          options={[...SHOP_CATEGORIES]}
           required
         />
-        <Text label="Description" value={form.description} onChange={set("description")} />
         <Select
           label="Business type"
           value={form.businessType}
@@ -166,32 +174,53 @@ export default function SellPage() {
           required
         />
 
-        <div className="border-t border-line pt-4 grid grid-cols-2 gap-3">
-          <Text label="PAN" value={form.panNumber} onChange={set("panNumber")} required maxLength={10} />
+        <div className="border-t border-line pt-4 space-y-4">
           <Text
-            label="Aadhaar (12 digits)"
-            value={form.aadhaar}
-            onChange={set("aadhaar")}
+            label={personal ? "PAN" : "Business PAN"}
+            value={form.panNumber}
+            onChange={set("panNumber")}
             required
-            maxLength={12}
+            maxLength={10}
           />
+
+          {personal ? (
+            <Text
+              label="Aadhaar (12 digits)"
+              value={form.aadhaar}
+              onChange={set("aadhaar")}
+              required
+              maxLength={12}
+            />
+          ) : (
+            <>
+              <Text label="GSTIN" value={form.gstin} onChange={set("gstin")} required maxLength={15} />
+              <Text
+                label="Registration / CIN number (optional)"
+                value={form.registrationNumber}
+                onChange={set("registrationNumber")}
+              />
+            </>
+          )}
+
+          {personal && (
+            <Text label="GSTIN (optional)" value={form.gstin} onChange={set("gstin")} maxLength={15} />
+          )}
         </div>
-        <Text label="GSTIN (optional)" value={form.gstin} onChange={set("gstin")} />
 
         <div className="border-t border-line pt-4 space-y-3">
           <p className="text-sm text-muted">Documents (image or PDF — optional)</p>
-          <DocInput
-            label="PAN card"
-            onChange={(f) => setDocs((d) => ({ ...d, pan: f }))}
-          />
-          <DocInput
-            label="Aadhaar card"
-            onChange={(f) => setDocs((d) => ({ ...d, aadhaar: f }))}
-          />
-          <DocInput
-            label="GST certificate"
-            onChange={(f) => setDocs((d) => ({ ...d, gst: f }))}
-          />
+          <DocInput label="PAN card" onChange={(f) => setDocs((d) => ({ ...d, pan: f }))} />
+          {personal ? (
+            <DocInput
+              label="Aadhaar card"
+              onChange={(f) => setDocs((d) => ({ ...d, aadhaar: f }))}
+            />
+          ) : (
+            <DocInput
+              label="GST / incorporation certificate"
+              onChange={(f) => setDocs((d) => ({ ...d, registration: f }))}
+            />
+          )}
         </div>
 
         <div className="border-t border-line pt-4">

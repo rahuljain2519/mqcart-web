@@ -138,8 +138,11 @@ export interface SellerApplication {
   description: string;
   businessType: string;
   panNumber: string;
+  /** Only for Individual / Proprietorship; "" for registered companies. */
   aadhaarLast4: string;
   gstin?: string;
+  /** CIN / LLPIN / firm registration no. — for Partnership / Pvt Ltd / LLP. */
+  registrationNumber?: string;
   addressLine: string;
   city: string;
   state: string;

@@ -56,6 +56,7 @@ function SellerApplications() {
                 <Row label="PAN" value={a.panNumber} />
                 <Row label="Aadhaar (last 4)" value={a.aadhaarLast4} />
                 <Row label="GSTIN" value={a.gstin} />
+                <Row label="Registration / CIN" value={a.registrationNumber} />
                 <Row
                   label="Address"
                   value={`${a.addressLine}, ${a.city}, ${a.state} ${a.pincode}`}

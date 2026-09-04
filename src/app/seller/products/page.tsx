@@ -14,21 +14,10 @@ import {
   validateProductLimit,
 } from "@/lib/data";
 import { uploadProductImages } from "@/lib/storage";
+import { PRODUCT_CATEGORIES } from "@/lib/categories";
 import type { Shop, Product } from "@/types";
 
-// Mirrors the app's AddEditProductScreen category list.
-const CATEGORIES = [
-  "Groceries",
-  "Bakery",
-  "Snacks",
-  "Personal Care",
-  "Household",
-  "Stationary",
-  "Clothing",
-  "Food",
-  "Art & Decor",
-  "Other",
-];
+const CATEGORIES = PRODUCT_CATEGORIES;
 
 type FormState = {
   id?: string;
