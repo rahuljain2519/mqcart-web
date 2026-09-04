@@ -479,6 +479,28 @@ export async function deleteSellerProduct(productId: string, shopId: string) {
   await updateDoc(doc(db, "shops", shopId), { productCount: increment(-1) });
 }
 
+/**
+ * Create many products at once (bulk upload). The caller must have already
+ * checked that productCount + rows.length <= productLimit.
+ */
+export async function bulkCreateProducts(
+  rows: Omit<Product, "id">[],
+  onProgress?: (done: number, total: number) => void
+) {
+  if (rows.length === 0) return;
+  const shopId = rows[0].shopId;
+  for (let i = 0; i < rows.length; i++) {
+    await addDoc(collection(db, "products"), {
+      ...rows[i],
+      createdAt: serverTimestamp(),
+    });
+    onProgress?.(i + 1, rows.length);
+  }
+  await updateDoc(doc(db, "shops", shopId), {
+    productCount: increment(rows.length),
+  });
+}
+
 export function watchProductsByShopAll(
   shopId: string,
   cb: (products: Product[]) => void

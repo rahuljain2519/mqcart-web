@@ -11,6 +11,7 @@ import {
   watchShopById,
   watchOrdersBySeller,
 } from "@/lib/data";
+import { registerSellerPush } from "@/lib/push";
 import type { Shop, Order } from "@/types";
 
 function SellerDashboard() {
@@ -43,6 +44,11 @@ function SellerDashboard() {
     const unsub = watchOrdersBySeller(profile.uid, setOrders);
     return () => unsub();
   }, [profile?.uid]);
+
+  // Ask for new-order push once we know this is a seller with a shop.
+  useEffect(() => {
+    if (profile?.uid && shop && shop.shopId) registerSellerPush(profile.uid);
+  }, [profile?.uid, shop]);
 
   if (shop === undefined) {
     return <p className="mx-auto max-w-6xl px-5 py-12 text-muted">Loading…</p>;
@@ -123,6 +129,12 @@ function SellerDashboard() {
           className="rounded-full border border-line px-5 py-2.5 font-medium hover:border-ink/40"
         >
           Orders
+        </Link>
+        <Link
+          href="/seller/preview"
+          className="rounded-full border border-line px-5 py-2.5 font-medium hover:border-ink/40"
+        >
+          Preview shop
         </Link>
         {shop.isActive && (
           <Link

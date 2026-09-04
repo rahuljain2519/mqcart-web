@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -179,12 +180,20 @@ function ProductsManager() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="font-display text-3xl">Products</h1>
         {form === null && (
-          <button
-            onClick={openAdd}
-            className="rounded-full bg-accent text-white px-5 py-2.5 font-medium hover:bg-accent/90 transition-colors"
-          >
-            Add product
-          </button>
+          <div className="flex gap-2">
+            <Link
+              href="/seller/products/bulk"
+              className="rounded-full border border-line px-4 py-2.5 text-sm font-medium hover:border-ink/40"
+            >
+              Bulk upload
+            </Link>
+            <button
+              onClick={openAdd}
+              className="rounded-full bg-accent text-white px-5 py-2.5 font-medium hover:bg-accent/90 transition-colors"
+            >
+              Add product
+            </button>
+          </div>
         )}
       </div>
       <p className="text-sm text-muted mb-6">
