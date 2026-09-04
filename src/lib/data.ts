@@ -529,7 +529,7 @@ export async function createOrder(order: {
   return addDoc(collection(db, "orders"), {
     ...order,
     status: "placed",
-    paymentStatus: order.paymentMethod === "cod" ? "pending" : "pending",
+    paymentStatus: "pending",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

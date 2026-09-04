@@ -12,7 +12,9 @@ function CheckoutView() {
   const { items, total, clear, singleShopId } = useCart();
   const router = useRouter();
   const [flatNumber, setFlatNumber] = useState(profile?.flatNumber ?? "");
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "razorpay">("cod");
+  // Web checkout is Cash on Delivery only, same as the mobile app. Online
+  // buyer-order payment isn't built on either platform yet.
+  const paymentMethod = "cod" as const;
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,24 +90,13 @@ function CheckoutView() {
       <div className="border border-line rounded-2xl bg-surface p-5 mb-5">
         <p className="text-sm text-muted mb-3">Payment method</p>
         <div className="flex gap-3">
-          <PayOption
-            label="Cash on delivery"
-            active={paymentMethod === "cod"}
-            onClick={() => setPaymentMethod("cod")}
-          />
-          <PayOption
-            label="Pay online"
-            active={paymentMethod === "razorpay"}
-            onClick={() => setPaymentMethod("razorpay")}
-          />
+          <div className="flex-1 rounded-xl border border-ink bg-ink text-bg px-4 py-3 text-sm font-medium">
+            Cash on delivery
+          </div>
+          <div className="flex-1 rounded-xl border border-line px-4 py-3 text-sm font-medium text-muted">
+            Pay online — coming soon
+          </div>
         </div>
-        {paymentMethod === "razorpay" && (
-          <p className="text-xs text-muted mt-3">
-            Online payment checkout is wired up on the seller-activation flow
-            today; buyer-order payments can reuse the same Razorpay Cloud
-            Function once that endpoint is extended.
-          </p>
-        )}
       </div>
 
       <div className="border border-line rounded-2xl bg-surface p-5 mb-6 flex items-center justify-between">
@@ -123,27 +114,6 @@ function CheckoutView() {
         {placing ? "Placing order…" : "Place order"}
       </button>
     </div>
-  );
-}
-
-function PayOption({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
-        active ? "border-ink bg-ink text-bg" : "border-line hover:border-ink/40"
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 

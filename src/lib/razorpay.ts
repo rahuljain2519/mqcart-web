@@ -3,7 +3,10 @@
 // createSellerOrder / razorpayWebhook Cloud Functions.
 
 export const RAZORPAY = {
-  keyId: "rzp_test_S1eY72xDYf06T6",
+  // Test key by default; set NEXT_PUBLIC_RAZORPAY_KEY_ID to an rzp_live_… key
+  // for production (the matching KEY_ID/KEY_SECRET function secrets must be live
+  // too). Same value the mobile app hard-codes in RazorpayConfig.
+  keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_test_S1eY72xDYf06T6",
   companyName: "MQ Cart",
   description: "Seller Subscription Activation",
   currency: "INR",
