@@ -1,6 +1,7 @@
 export type UserRole = "buyer" | "seller" | "admin";
 export type SellerStatus = "none" | "pending" | "active" | "inactive";
-export type OrderStatus = "placed" | "accepted" | "delivered" | "cancelled" | "completed";
+// Matches the mobile app: placed -> accepted -> delivered, or rejected.
+export type OrderStatus = "placed" | "accepted" | "delivered" | "rejected";
 export type PaymentMethod = "cod" | "razorpay";
 export type PaymentStatus = "pending" | "paid" | "failed";
 

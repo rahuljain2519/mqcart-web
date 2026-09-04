@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import { createOrder, getShop, getSociety } from "@/lib/data";
+import { createOrder, getShop, getSociety, reduceStockForOrder } from "@/lib/data";
 
 function CheckoutView() {
   const { profile } = useAuth();
@@ -34,6 +34,12 @@ function CheckoutView() {
         getSociety(profile.societyId),
       ]);
       if (!shop) throw new Error("Shop not found.");
+
+      // Decrement stock atomically first — same order as the mobile checkout.
+      // If this throws (item gone / under-stocked) the order is not created.
+      await reduceStockForOrder(
+        items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
+      );
 
       await createOrder({
         buyerId: profile.uid,

@@ -6,6 +6,7 @@ import {
   addDoc,
   setDoc,
   updateDoc,
+  runTransaction,
   query,
   where,
   orderBy,
@@ -144,6 +145,55 @@ export async function createOrder(order: {
     paymentStatus: order.paymentMethod === "cod" ? "pending" : "pending",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Atomically decrement product stock for an order. Mirrors the mobile app's
+ * ProductRepository.reduceStockAfterOrder — all reads first, validate, then
+ * write. Throws if any item is gone or under-stocked (caller must not create
+ * the order in that case).
+ */
+export async function reduceStockForOrder(
+  items: { productId: string; quantity: number }[]
+) {
+  await runTransaction(db, async (tx) => {
+    const refs = items.map((it) => doc(db, "products", it.productId));
+    const snaps = [];
+    for (const ref of refs) snaps.push(await tx.get(ref));
+
+    const next: number[] = [];
+    snaps.forEach((snap, i) => {
+      if (!snap.exists()) throw new Error("An item is no longer available.");
+      const data = snap.data();
+      const stock = (data.quantity as number) ?? 0;
+      if (stock < items[i].quantity) {
+        throw new Error(`Not enough stock for ${data.name ?? "an item"}.`);
+      }
+      next[i] = stock - items[i].quantity;
+    });
+
+    snaps.forEach((snap, i) => tx.update(snap.ref, { quantity: next[i] }));
+  });
+}
+
+/**
+ * Return stock to inventory when an order is rejected. Mirrors the mobile app's
+ * ProductRepository.restockAfterOrderCancel — missing products are skipped.
+ */
+export async function restockForOrder(
+  items: { productId: string; quantity: number }[]
+) {
+  await runTransaction(db, async (tx) => {
+    const refs = items.map((it) => doc(db, "products", it.productId));
+    const snaps = [];
+    for (const ref of refs) snaps.push(await tx.get(ref));
+
+    snaps.forEach((snap, i) => {
+      if (!snap.exists()) return;
+      const stock = (snap.data().quantity as number) ?? 0;
+      tx.update(snap.ref, { quantity: stock + items[i].quantity });
+    });
   });
 }
 

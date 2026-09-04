@@ -8,9 +8,9 @@ import type { Order } from "@/types";
 
 const statusColor: Record<string, string> = {
   placed: "bg-accent/10 text-accent-ink",
-  accepted: "bg-green-bg text-green",
+  accepted: "bg-line text-ink/70",
   delivered: "bg-green-bg text-green",
-  cancelled: "bg-danger/10 text-danger",
+  rejected: "bg-danger/10 text-danger",
 };
 
 function OrdersView() {
