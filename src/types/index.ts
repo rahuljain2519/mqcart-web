@@ -39,10 +39,15 @@ export interface Shop {
   transactionFeePercent: number;
   isActive: boolean;
   isVerified: boolean;
-  deliveryUnit: "minutes" | "hours" | "days";
+  deliveryUnit: DeliveryUnit;
   deliveryMinValue: number;
   deliveryMaxValue: number;
+  deliveryMinMinutes?: number;
+  deliveryMaxMinutes?: number;
+  planStatus?: string;
 }
+
+export type DeliveryUnit = "minutes" | "hours" | "days";
 
 export interface Product {
   id: string;
@@ -57,6 +62,30 @@ export interface Product {
   images: string[];
   coverImage: string;
   isActive: boolean;
+  // Optional per-product delivery override (mirrors the app).
+  deliveryUnit?: DeliveryUnit;
+  deliveryMinValue?: number;
+  deliveryMaxValue?: number;
+  deliveryMinMinutes?: number;
+  deliveryMaxMinutes?: number;
+}
+
+export interface SellerPlan {
+  key: string; // free | basic | pro | elite
+  name: string;
+  monthlyFee: number;
+  productLimit: number;
+  validityDays?: number | null;
+}
+
+export interface SellerSubscription {
+  sellerId: string;
+  shopId: string;
+  currentPlan: string;
+  status: string;
+  productLimit: number;
+  freePlanUsed?: boolean;
+  expiresAt?: Date | null;
 }
 
 export interface CartItem {

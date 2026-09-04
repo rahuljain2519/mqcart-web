@@ -7,6 +7,9 @@ import {
   addDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
+  increment,
+  writeBatch,
   runTransaction,
   query,
   where,
@@ -16,7 +19,8 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "./firebase";
 import type {
   AppUser,
   Society,
@@ -25,8 +29,17 @@ import type {
   Order,
   OrderItem,
   SellerApplication,
+  SellerPlan,
+  SellerSubscription,
+  DeliveryUnit,
   AnalyticsOverview,
 } from "@/types";
+
+export function toMinutes(value: number, unit: DeliveryUnit): number {
+  if (unit === "minutes") return value;
+  if (unit === "hours") return value * 60;
+  return value * 1440; // days
+}
 
 const toDate = (v: Timestamp | Date | null | undefined) =>
   v instanceof Timestamp ? v.toDate() : v ?? null;
@@ -90,6 +103,226 @@ export async function getShopBySeller(sellerId: string): Promise<Shop | null> {
   if (snap.empty) return null;
   const d = snap.docs[0];
   return { shopId: d.id, ...(d.data() as Omit<Shop, "shopId">) };
+}
+
+export function watchShopById(shopId: string, cb: (shop: Shop | null) => void) {
+  return onSnapshot(doc(db, "shops", shopId), (snap) =>
+    cb(snap.exists() ? ({ shopId, ...snap.data() } as Shop) : null)
+  );
+}
+
+/**
+ * Create a seller's shop (idempotent — reuses an existing one). Always starts
+ * inactive; activation is gated on a plan. Mirrors the app's ShopRemoteDS.createShop.
+ */
+export async function createShop(input: {
+  sellerId: string;
+  societyId: string;
+  shopName: string;
+  deliveryUnit: DeliveryUnit;
+  deliveryMinValue: number;
+  deliveryMaxValue: number;
+  logoUrl?: string;
+  bannerUrl?: string;
+}): Promise<string> {
+  const existing = await getShopBySeller(input.sellerId);
+  const payload = {
+    sellerId: input.sellerId,
+    societyId: input.societyId,
+    shopName: input.shopName.trim(),
+    description: "",
+    logoUrl: input.logoUrl ?? "",
+    bannerUrl: input.bannerUrl ?? "",
+    address: "",
+    phone: "",
+    plan: "free",
+    productLimit: 10,
+    productCount: existing?.productCount ?? 0,
+    transactionFeePercent: 0,
+    isActive: false,
+    activationStatus: "pending",
+    isVerified: false,
+    deliveryUnit: input.deliveryUnit,
+    deliveryMinValue: input.deliveryMinValue,
+    deliveryMaxValue: input.deliveryMaxValue,
+    deliveryMinMinutes: toMinutes(input.deliveryMinValue, input.deliveryUnit),
+    deliveryMaxMinutes: toMinutes(input.deliveryMaxValue, input.deliveryUnit),
+    updatedAt: serverTimestamp(),
+  };
+  if (existing) {
+    await updateDoc(doc(db, "shops", existing.shopId), payload);
+    return existing.shopId;
+  }
+  const r = await addDoc(collection(db, "shops"), {
+    ...payload,
+    createdAt: serverTimestamp(),
+  });
+  return r.id;
+}
+
+export async function updateShop(shopId: string, patch: Partial<Shop>) {
+  return updateDoc(doc(db, "shops", shopId), { ...patch, updatedAt: serverTimestamp() });
+}
+
+/** Link the shop to the user doc (one-time, allowed by rules for approved sellers). */
+export async function linkShopToUser(uid: string, shopId: string) {
+  return updateDoc(doc(db, "users", uid), { shopId, updatedAt: serverTimestamp() });
+}
+
+/* ---------------------------- Seller plans / activation -------------------- */
+
+export async function getSellerPlans(): Promise<SellerPlan[]> {
+  const snap = await getDoc(doc(db, "platform_config", "seller_plans"));
+  if (!snap.exists()) return [];
+  const data = snap.data();
+  const order = ["free", "basic", "pro", "elite"];
+  return Object.entries(data)
+    .filter(([, v]) => v && typeof v === "object" && "monthlyFee" in v)
+    .map(([key, v]) => {
+      const plan = v as Record<string, unknown>;
+      return {
+        key,
+        name: (plan.name as string) ?? key,
+        monthlyFee: Number(plan.monthlyFee ?? 0),
+        productLimit: Number(plan.productLimit ?? 0),
+        validityDays: (plan.validityDays as number | null | undefined) ?? null,
+      };
+    })
+    .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+}
+
+export async function getSellerSubscription(
+  sellerId: string
+): Promise<SellerSubscription | null> {
+  const snap = await getDoc(doc(db, "seller_subscriptions", sellerId));
+  if (!snap.exists()) return null;
+  const d = snap.data();
+  return {
+    sellerId,
+    shopId: d.shopId ?? "",
+    currentPlan: d.currentPlan ?? "free",
+    status: d.status ?? "inactive",
+    productLimit: Number(d.productLimit ?? 0),
+    freePlanUsed: d.freePlanUsed === true,
+    expiresAt: toDate(d.expiresAt),
+  };
+}
+
+/**
+ * Activate/upgrade a shop to a plan and enforce its product limit by disabling
+ * the oldest products beyond the limit. Mirrors ShopRepository.activateShop.
+ */
+export async function activateShopPlan(input: {
+  shopId: string;
+  plan: string;
+  productLimit: number;
+}) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, "shops", input.shopId), {
+    isActive: true,
+    activationStatus: "active",
+    planStatus: "active",
+    plan: input.plan,
+    productLimit: input.productLimit,
+    planActivatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  const active = await getDocs(
+    query(
+      collection(db, "products"),
+      where("shopId", "==", input.shopId),
+      where("isActive", "==", true),
+      orderBy("createdAt")
+    )
+  );
+  active.docs.forEach((d, i) => {
+    if (i >= input.productLimit) batch.update(d.ref, { isActive: false });
+  });
+
+  await batch.commit();
+}
+
+/** Activate the free plan directly (no payment), mirroring the app. */
+export async function activateFreePlan(input: {
+  sellerId: string;
+  shopId: string;
+  plan: SellerPlan;
+}) {
+  const expiresAt = input.plan.validityDays
+    ? Timestamp.fromDate(
+        new Date(Date.now() + input.plan.validityDays * 86400000)
+      )
+    : null;
+
+  await setDoc(
+    doc(db, "seller_subscriptions", input.sellerId),
+    {
+      sellerId: input.sellerId,
+      shopId: input.shopId,
+      currentPlan: input.plan.key,
+      status: "active",
+      productLimit: input.plan.productLimit,
+      startedAt: serverTimestamp(),
+      expiresAt,
+      autoRenew: false,
+      freePlanUsed: true,
+      lastPaymentId: null,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  await activateShopPlan({
+    shopId: input.shopId,
+    plan: input.plan.key,
+    productLimit: input.plan.productLimit,
+  });
+}
+
+/** STEP 1 of paid activation: create the source-of-truth payment record. */
+export async function createActivationPayment(input: {
+  sellerId: string;
+  shopId: string;
+  plan: string;
+  monthlyFee: number;
+  productLimit: number;
+}): Promise<string> {
+  const r = doc(collection(db, "seller_activation_payments"));
+  await setDoc(r, {
+    sellerId: input.sellerId,
+    shopId: input.shopId,
+    plan: input.plan,
+    monthlyFee: input.monthlyFee,
+    productLimit: input.productLimit,
+    gateway: "razorpay",
+    status: "initiated",
+    createdAt: serverTimestamp(),
+  });
+  return r.id;
+}
+
+export async function markActivationPaymentFailed(
+  paymentDocId: string,
+  reason: string
+) {
+  return updateDoc(doc(db, "seller_activation_payments", paymentDocId), {
+    status: "failed",
+    failureReason: reason,
+    failedAt: serverTimestamp(),
+  });
+}
+
+/** STEP 2 of paid activation: ask the backend to create the Razorpay order. */
+export async function createSellerRazorpayOrder(
+  paymentDocId: string
+): Promise<string> {
+  const fn = httpsCallable<{ paymentDocId: string }, { orderId: string }>(
+    functions,
+    "createSellerOrder"
+  );
+  const res = await fn({ paymentDocId });
+  return res.data.orderId;
 }
 
 /* --------------------------------- Products --------------------------------- */
@@ -212,6 +445,49 @@ export async function addProduct(product: Omit<Product, "id">) {
 
 export async function updateProduct(productId: string, patch: Partial<Product>) {
   return updateDoc(doc(db, "products", productId), patch);
+}
+
+/** Throws if the shop is already at its plan's product limit (mirrors the app). */
+export async function validateProductLimit(shopId: string) {
+  const snap = await getDoc(doc(db, "shops", shopId));
+  if (!snap.exists()) throw new Error("Shop not found.");
+  const d = snap.data();
+  const count = Number(d.productCount ?? 0);
+  const limit = Number(d.productLimit ?? 10);
+  if (count >= limit) {
+    throw new Error(
+      `You've reached your plan's limit of ${limit} products. Upgrade to add more.`
+    );
+  }
+}
+
+/** Create a product with limit check + productCount bump, like ProductRepository.createProduct. */
+export async function createSellerProduct(product: Omit<Product, "id">) {
+  await validateProductLimit(product.shopId);
+  const r = await addDoc(collection(db, "products"), {
+    ...product,
+    createdAt: serverTimestamp(),
+  });
+  await updateDoc(doc(db, "shops", product.shopId), {
+    productCount: increment(1),
+  });
+  return r;
+}
+
+export async function deleteSellerProduct(productId: string, shopId: string) {
+  await deleteDoc(doc(db, "products", productId));
+  await updateDoc(doc(db, "shops", shopId), { productCount: increment(-1) });
+}
+
+export function watchProductsByShopAll(
+  shopId: string,
+  cb: (products: Product[]) => void
+) {
+  // Seller view — includes inactive/hidden products.
+  const q = query(collection(db, "products"), where("shopId", "==", shopId));
+  return onSnapshot(q, (snap) =>
+    cb(snap.docs.map((s) => ({ id: s.id, ...(s.data() as Omit<Product, "id">) })))
+  );
 }
 
 /* ---------------------------------- Orders ---------------------------------- */
