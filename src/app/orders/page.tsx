@@ -86,7 +86,8 @@ function OrderCard({ order }: { order: Order }) {
               href={`/product/${it.productId}`}
               className="hover:underline text-ink/80"
             >
-              {it.name} × {it.quantity}
+              {it.name}
+              {it.optionName ? ` (${it.optionName})` : ""} × {it.quantity}
             </Link>
             <span className="text-muted">₹{(it.price * it.quantity).toFixed(0)}</span>
           </li>

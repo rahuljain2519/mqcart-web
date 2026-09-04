@@ -19,6 +19,8 @@ import type { Shop, Product } from "@/types";
 
 const CATEGORIES = PRODUCT_CATEGORIES;
 
+type OptRow = { name: string; price: string; quantity: string };
+
 type FormState = {
   id?: string;
   name: string;
@@ -28,6 +30,9 @@ type FormState = {
   description: string;
   existingImages: string[];
   coverIndex: number;
+  // Variant options (weight / size / colour). Empty rows => simple product.
+  optionLabel: string;
+  options: OptRow[];
 };
 
 const EMPTY: FormState = {
@@ -38,7 +43,11 @@ const EMPTY: FormState = {
   description: "",
   existingImages: [],
   coverIndex: 0,
+  optionLabel: "",
+  options: [],
 };
+
+const OPTION_LABELS = ["Weight", "Size", "Colour", "Pack", "Variant"];
 
 function ProductsManager() {
   const { profile } = useAuth();
@@ -99,20 +108,52 @@ function ProductsManager() {
         0,
         (p.images.length ? p.images : [p.coverImage]).indexOf(p.coverImage)
       ),
+      optionLabel: p.optionLabel ?? "",
+      options: (p.options ?? []).map((o) => ({
+        name: o.name,
+        price: String(o.price),
+        quantity: String(o.quantity),
+      })),
     });
     setFiles([]);
   };
+
+  const setOpts = (options: OptRow[]) =>
+    setForm((f) => (f ? { ...f, options } : f));
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form || !shop || !profile) return;
     setError(null);
 
-    const price = parseFloat(form.price);
-    const quantity = parseInt(form.quantity, 10);
-    if (!form.name.trim() || !form.category) return setError("Name and category are required.");
-    if (!Number.isFinite(price) || price < 0) return setError("Enter a valid price.");
-    if (!Number.isFinite(quantity) || quantity < 0) return setError("Enter a valid quantity.");
+    if (!form.name.trim() || !form.category)
+      return setError("Name and category are required.");
+
+    const useOptions = form.options.length > 0;
+    let price = parseFloat(form.price);
+    let quantity = parseInt(form.quantity, 10);
+    let options: { name: string; price: number; quantity: number }[] = [];
+
+    if (useOptions) {
+      const rows = form.options.map((o) => ({
+        name: o.name.trim(),
+        price: parseFloat(o.price),
+        quantity: parseInt(o.quantity, 10),
+      }));
+      if (rows.some((o) => !o.name || !Number.isFinite(o.price) || o.price < 0 || !Number.isFinite(o.quantity) || o.quantity < 0)) {
+        return setError("Every option needs a name, price and stock.");
+      }
+      if (new Set(rows.map((o) => o.name)).size !== rows.length) {
+        return setError("Option names must be unique.");
+      }
+      options = rows;
+      price = Math.min(...rows.map((o) => o.price)); // "from" price
+      quantity = rows.reduce((s, o) => s + o.quantity, 0);
+    } else {
+      if (!Number.isFinite(price) || price < 0) return setError("Enter a valid price.");
+      if (!Number.isFinite(quantity) || quantity < 0)
+        return setError("Enter a valid quantity.");
+    }
 
     setSaving(true);
     try {
@@ -136,6 +177,8 @@ function ProductsManager() {
         images,
         coverImage,
         isActive: true,
+        optionLabel: useOptions ? form.optionLabel.trim() || "Option" : "",
+        options,
       };
 
       if (form.id) {
@@ -231,27 +274,120 @@ function ProductsManager() {
               ))}
             </select>
           </F>
-          <F label="Price (₹)">
-            <input
-              required
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              className="in"
-            />
-          </F>
-          <F label="Stock quantity">
-            <input
-              required
-              type="number"
-              min={0}
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-              className="in"
-            />
-          </F>
+          {form.options.length === 0 && (
+            <>
+              <F label="Price (₹)">
+                <input
+                  required
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  className="in"
+                />
+              </F>
+              <F label="Stock quantity">
+                <input
+                  required
+                  type="number"
+                  min={0}
+                  value={form.quantity}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  className="in"
+                />
+              </F>
+            </>
+          )}
+
+          {/* Variant options — one listing, buyer picks size / weight / colour */}
+          <div className="sm:col-span-2 border border-line rounded-xl p-3 space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={form.options.length > 0}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    options: e.target.checked
+                      ? [{ name: "", price: form.price || "", quantity: form.quantity || "" }]
+                      : [],
+                  })
+                }
+              />
+              This product comes in sizes / weights / colours
+            </label>
+
+            {form.options.length > 0 && (
+              <>
+                <F label="Option type">
+                  <input
+                    list="option-labels"
+                    value={form.optionLabel}
+                    onChange={(e) => setForm({ ...form, optionLabel: e.target.value })}
+                    placeholder="Weight"
+                    className="in"
+                  />
+                  <datalist id="option-labels">
+                    {OPTION_LABELS.map((l) => (
+                      <option key={l} value={l} />
+                    ))}
+                  </datalist>
+                </F>
+
+                <div className="space-y-2">
+                  {form.options.map((o, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        value={o.name}
+                        onChange={(e) =>
+                          setOpts(form.options.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                        }
+                        placeholder="500g"
+                        className="in flex-1"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={o.price}
+                        onChange={(e) =>
+                          setOpts(form.options.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))
+                        }
+                        placeholder="₹"
+                        className="in w-24"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        value={o.quantity}
+                        onChange={(e) =>
+                          setOpts(form.options.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))
+                        }
+                        placeholder="Stock"
+                        className="in w-24"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setOpts(form.options.filter((_, j) => j !== i))}
+                        className="text-muted hover:text-danger px-1"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpts([...form.options, { name: "", price: "", quantity: "" }])}
+                  className="text-sm text-accent-ink"
+                >
+                  + Add option
+                </button>
+              </>
+            )}
+          </div>
+
           <div className="sm:col-span-2">
             <F label="Description">
               <textarea

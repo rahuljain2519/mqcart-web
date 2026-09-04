@@ -544,51 +544,96 @@ export async function createOrder(order: {
   });
 }
 
-/**
- * Atomically decrement product stock for an order. Mirrors the mobile app's
- * ProductRepository.reduceStockAfterOrder — all reads first, validate, then
- * write. Throws if any item is gone or under-stocked (caller must not create
- * the order in that case).
- */
-export async function reduceStockForOrder(
-  items: { productId: string; quantity: number }[]
-) {
-  await runTransaction(db, async (tx) => {
-    const refs = items.map((it) => doc(db, "products", it.productId));
-    const snaps = [];
-    for (const ref of refs) snaps.push(await tx.get(ref));
+type StockItem = { productId: string; quantity: number; optionName?: string };
 
-    const next: number[] = [];
-    snaps.forEach((snap, i) => {
-      if (!snap.exists()) throw new Error("An item is no longer available.");
-      const data = snap.data();
-      const stock = (data.quantity as number) ?? 0;
-      if (stock < items[i].quantity) {
-        throw new Error(`Not enough stock for ${data.name ?? "an item"}.`);
+type OptRow = { name: string; price: number; quantity: number };
+
+/** Apply +/- deltas to a product doc's stock, option-aware. Returns the patch. */
+function applyStockDelta(
+  data: Record<string, unknown>,
+  lines: StockItem[],
+  sign: 1 | -1,
+  validate: boolean
+): Record<string, unknown> {
+  const options = Array.isArray(data.options)
+    ? (data.options as OptRow[]).map((o) => ({ ...o }))
+    : null;
+
+  if (options && options.length) {
+    for (const l of lines) {
+      const opt = options.find((o) => o.name === l.optionName);
+      if (!opt) {
+        if (validate) throw new Error(`Option "${l.optionName}" is unavailable.`);
+        continue;
       }
-      next[i] = stock - items[i].quantity;
+      const nextQ = (opt.quantity ?? 0) + sign * l.quantity;
+      if (validate && nextQ < 0) {
+        throw new Error(`Not enough stock for ${data.name ?? "an item"} (${opt.name}).`);
+      }
+      opt.quantity = Math.max(0, nextQ);
+    }
+    return {
+      options,
+      quantity: options.reduce((s, o) => s + (o.quantity ?? 0), 0),
+    };
+  }
+
+  // Simple product.
+  const total = lines.reduce((s, l) => s + l.quantity, 0);
+  const stock = (data.quantity as number) ?? 0;
+  const next = stock + sign * total;
+  if (validate && next < 0) {
+    throw new Error(`Not enough stock for ${data.name ?? "an item"}.`);
+  }
+  return { quantity: Math.max(0, next) };
+}
+
+function groupByProduct(items: StockItem[]): Map<string, StockItem[]> {
+  const m = new Map<string, StockItem[]>();
+  for (const it of items) {
+    const arr = m.get(it.productId) ?? [];
+    arr.push(it);
+    m.set(it.productId, arr);
+  }
+  return m;
+}
+
+/**
+ * Atomically decrement product stock for an order (option-aware). All reads
+ * first, validate, then write — mirrors the mobile app. Throws if any item is
+ * gone or under-stocked, so the caller must not create the order.
+ */
+export async function reduceStockForOrder(items: StockItem[]) {
+  await runTransaction(db, async (tx) => {
+    const groups = [...groupByProduct(items)];
+    const snaps = await Promise.all(
+      groups.map(([pid]) => tx.get(doc(db, "products", pid)))
+    );
+
+    const patches = groups.map(([, lines], i) => {
+      const snap = snaps[i];
+      if (!snap.exists()) throw new Error("An item is no longer available.");
+      return applyStockDelta(snap.data(), lines, -1, true);
     });
 
-    snaps.forEach((snap, i) => tx.update(snap.ref, { quantity: next[i] }));
+    snaps.forEach((snap, i) => tx.update(snap.ref, patches[i]));
   });
 }
 
 /**
- * Return stock to inventory when an order is rejected. Mirrors the mobile app's
- * ProductRepository.restockAfterOrderCancel — missing products are skipped.
+ * Return stock to inventory when an order is rejected (option-aware). Missing
+ * products are skipped.
  */
-export async function restockForOrder(
-  items: { productId: string; quantity: number }[]
-) {
+export async function restockForOrder(items: StockItem[]) {
   await runTransaction(db, async (tx) => {
-    const refs = items.map((it) => doc(db, "products", it.productId));
-    const snaps = [];
-    for (const ref of refs) snaps.push(await tx.get(ref));
+    const groups = [...groupByProduct(items)];
+    const snaps = await Promise.all(
+      groups.map(([pid]) => tx.get(doc(db, "products", pid)))
+    );
 
     snaps.forEach((snap, i) => {
       if (!snap.exists()) return;
-      const stock = (snap.data().quantity as number) ?? 0;
-      tx.update(snap.ref, { quantity: stock + items[i].quantity });
+      tx.update(snap.ref, applyStockDelta(snap.data(), groups[i][1], 1, false));
     });
   });
 }

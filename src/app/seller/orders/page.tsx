@@ -68,7 +68,11 @@ function SellerOrders() {
     setError(null);
     try {
       await restockForOrder(
-        o.items.map((it) => ({ productId: it.productId, quantity: it.quantity }))
+        o.items.map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          optionName: it.optionName,
+        }))
       );
       await updateOrderStatus(o.id, "rejected");
     } catch (err) {
@@ -118,7 +122,8 @@ function SellerOrders() {
                         <ul className="text-sm text-muted mt-2">
                           {o.items.map((it, idx) => (
                             <li key={idx}>
-                              {it.name} × {it.quantity}
+                              {it.name}
+                              {it.optionName ? ` (${it.optionName})` : ""} × {it.quantity}
                             </li>
                           ))}
                         </ul>

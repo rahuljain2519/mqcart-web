@@ -5,19 +5,21 @@ import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
 import { watchProductsByIds } from "@/lib/data";
+import { stockFor } from "@/lib/product";
+import { lineKey } from "@/types";
 import type { Product } from "@/types";
 
 function CartView() {
   const { items, updateQuantity, removeItem, syncStock, total } = useCart();
-  const [stock, setStock] = useState<Map<string, number>>(new Map());
+  const [products, setProducts] = useState<Map<string, Product>>(new Map());
 
   // Live stock: reconcile the cart (drop sold-out, clamp over-stock) like the app.
   useEffect(() => {
     const ids = items.map((i) => i.productId);
     if (ids.length === 0) return;
-    const unsub = watchProductsByIds(ids, (products: Product[]) => {
-      setStock(new Map(products.map((p) => [p.id, p.quantity])));
-      syncStock(products);
+    const unsub = watchProductsByIds(ids, (list: Product[]) => {
+      setProducts(new Map(list.map((p) => [p.id, p])));
+      syncStock(list);
     });
     return () => unsub();
     // Re-subscribe only when the SET of product ids changes.
@@ -45,10 +47,11 @@ function CartView() {
 
       <ul className="border border-line rounded-2xl bg-surface divide-y divide-line">
         {items.map((item) => {
-          const live = stock.get(item.productId);
+          const p = products.get(item.productId);
+          const live = p ? stockFor(p, item.optionName) : undefined;
           const maxReached = live !== undefined && item.quantity >= live;
           return (
-            <li key={item.productId} className="p-4 flex items-center gap-4">
+            <li key={lineKey(item.productId, item.optionName)} className="p-4 flex items-center gap-4">
               <div className="w-16 h-16 rounded-xl bg-green-bg shrink-0 overflow-hidden">
                 {item.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -56,7 +59,12 @@ function CartView() {
                 ) : null}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{item.name}</p>
+                <p className="font-medium truncate">
+                  {item.name}
+                  {item.optionName && (
+                    <span className="text-muted font-normal"> · {item.optionName}</span>
+                  )}
+                </p>
                 <p className="text-sm text-muted">₹{item.price.toFixed(0)} each</p>
                 {live !== undefined && live <= 3 && (
                   <p className="text-xs text-danger mt-0.5">
@@ -66,14 +74,18 @@ function CartView() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                  onClick={() =>
+                    updateQuantity(item.productId, item.quantity - 1, item.optionName)
+                  }
                   className="w-7 h-7 rounded-full border border-line hover:border-ink/40"
                 >
                   −
                 </button>
                 <span className="w-6 text-center">{item.quantity}</span>
                 <button
-                  onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                  onClick={() =>
+                    updateQuantity(item.productId, item.quantity + 1, item.optionName)
+                  }
                   disabled={maxReached}
                   className="w-7 h-7 rounded-full border border-line hover:border-ink/40 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -81,7 +93,7 @@ function CartView() {
                 </button>
               </div>
               <button
-                onClick={() => removeItem(item.productId)}
+                onClick={() => removeItem(item.productId, item.optionName)}
                 className="text-sm text-muted hover:text-danger ml-2"
               >
                 Remove

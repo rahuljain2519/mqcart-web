@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { hasOptions, priceLabel, stockFor } from "@/lib/product";
 import type { Product } from "@/types";
 
 export default function ProductCard({
@@ -17,10 +18,13 @@ export default function ProductCard({
 }) {
   const { items, addItem, updateQuantity } = useCart();
 
-  const line = items.find((i) => i.productId === product.id);
+  const variant = hasOptions(product);
+  // For a plain product the cart line is keyed by id alone.
+  const line = items.find((i) => i.productId === product.id && !i.optionName);
   const qty = line?.quantity ?? 0;
-  const outOfStock = product.quantity <= 0;
-  const maxReached = product.quantity > 0 && qty >= product.quantity;
+  const stock = stockFor(product);
+  const outOfStock = stock <= 0;
+  const maxReached = stock > 0 && qty >= stock;
 
   const add = () => {
     if (addItem(product, product.shopId) === "different-shop") onMultiShop?.();
@@ -59,9 +63,16 @@ export default function ProductCard({
           {product.name}
         </Link>
         <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="font-medium">₹{product.price.toFixed(0)}</span>
+          <span className="font-medium">{priceLabel(product)}</span>
 
-          {qty === 0 ? (
+          {variant ? (
+            <Link
+              href={`/product/${product.id}`}
+              className="text-sm rounded-full border border-accent text-accent-ink px-4 py-1 hover:bg-accent/5 transition-colors"
+            >
+              {outOfStock ? "Sold out" : "Options"}
+            </Link>
+          ) : qty === 0 ? (
             <button
               onClick={add}
               disabled={outOfStock}

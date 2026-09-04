@@ -9,15 +9,25 @@ import {
   ReactNode,
 } from "react";
 import type { CartItem, Product } from "@/types";
+import { lineKey } from "@/types";
+import { hasOptions, priceFor, stockFor } from "@/lib/product";
 
 export type AddToCartResult = "ok" | "different-shop";
 
 interface CartContextValue {
   items: CartItem[];
   /** Returns "different-shop" if the cart already holds items from another shop. */
-  addItem: (product: Product, shopId: string) => AddToCartResult;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  addItem: (
+    product: Product,
+    shopId: string,
+    optionName?: string
+  ) => AddToCartResult;
+  updateQuantity: (
+    productId: string,
+    quantity: number,
+    optionName?: string
+  ) => void;
+  removeItem: (productId: string, optionName?: string) => void;
   clear: () => void;
   /** Reconcile cart lines against live stock — drop sold-out, clamp over-stock. */
   syncStock: (products: Product[]) => void;
@@ -29,6 +39,8 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 const STORAGE_KEY = "mqcart_web_cart";
 
+const keyOf = (i: CartItem) => lineKey(i.productId, i.optionName);
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -36,8 +48,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      // Hydrate from localStorage on mount — can't run during SSR, so an effect
-      // is the correct place despite the set-state-in-effect lint.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setItems(JSON.parse(raw));
     } catch {
@@ -56,7 +66,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items, hydrated]);
 
   const addItem = useCallback(
-    (product: Product, shopId: string): AddToCartResult => {
+    (product: Product, shopId: string, optionName?: string): AddToCartResult => {
       let result: AddToCartResult = "ok";
       setItems((prev) => {
         const currentShop = prev.length ? prev[0].shopId : null;
@@ -64,10 +74,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
           result = "different-shop";
           return prev;
         }
-        const existing = prev.find((i) => i.productId === product.id);
+        const k = lineKey(product.id, optionName);
+        const existing = prev.find((i) => keyOf(i) === k);
         if (existing) {
           return prev.map((i) =>
-            i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i
+            keyOf(i) === k ? { ...i, quantity: i.quantity + 1 } : i
           );
         }
         return [
@@ -75,11 +86,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
           {
             productId: product.id,
             name: product.name,
-            price: product.price,
+            price: priceFor(product, optionName),
             imageUrl: product.coverImage,
             sellerId: product.sellerId,
             shopId,
             quantity: 1,
+            ...(optionName ? { optionName } : {}),
           },
         ];
       });
@@ -88,31 +100,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const updateQuantity = useCallback((productId: string, quantity: number) => {
-    setItems((prev) =>
-      quantity <= 0
-        ? prev.filter((i) => i.productId !== productId)
-        : prev.map((i) => (i.productId === productId ? { ...i, quantity } : i))
-    );
-  }, []);
-
-  const removeItem = useCallback(
-    (productId: string) =>
-      setItems((prev) => prev.filter((i) => i.productId !== productId)),
+  const updateQuantity = useCallback(
+    (productId: string, quantity: number, optionName?: string) => {
+      const k = lineKey(productId, optionName);
+      setItems((prev) =>
+        quantity <= 0
+          ? prev.filter((i) => keyOf(i) !== k)
+          : prev.map((i) => (keyOf(i) === k ? { ...i, quantity } : i))
+      );
+    },
     []
   );
+
+  const removeItem = useCallback((productId: string, optionName?: string) => {
+    const k = lineKey(productId, optionName);
+    setItems((prev) => prev.filter((i) => keyOf(i) !== k));
+  }, []);
 
   const clear = useCallback(() => setItems([]), []);
 
   const syncStock = useCallback((products: Product[]) => {
-    const stock = new Map(products.map((p) => [p.id, p.quantity]));
+    const byId = new Map(products.map((p) => [p.id, p]));
     setItems((prev) =>
       prev
         .map((i) => {
-          const live = stock.get(i.productId);
-          if (live === undefined) return i; // product not in this batch — leave it
+          const p = byId.get(i.productId);
+          if (!p) return i; // not in this batch — leave it
+          const live = stockFor(p, i.optionName);
           if (live <= 0) return null;
-          return live < i.quantity ? { ...i, quantity: live } : i;
+          // Keep the option price fresh too.
+          const price = hasOptions(p) ? priceFor(p, i.optionName) : p.price;
+          const qty = live < i.quantity ? live : i.quantity;
+          return { ...i, price, quantity: qty };
         })
         .filter((i): i is CartItem => i !== null)
     );

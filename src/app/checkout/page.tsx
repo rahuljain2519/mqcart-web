@@ -40,7 +40,11 @@ function CheckoutView() {
       // Decrement stock atomically first — same order as the mobile checkout.
       // If this throws (item gone / under-stocked) the order is not created.
       await reduceStockForOrder(
-        items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
+        items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          optionName: i.optionName,
+        }))
       );
 
       await createOrder({
@@ -56,6 +60,7 @@ function CheckoutView() {
           name: i.name,
           price: i.price,
           quantity: i.quantity,
+          ...(i.optionName ? { optionName: i.optionName } : {}),
         })),
         totalAmount: total,
         paymentMethod,

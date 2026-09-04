@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
 import { watchProduct, watchShopById } from "@/lib/data";
+import { hasOptions, priceFor, priceLabel, stockFor } from "@/lib/product";
 import type { Product, Shop } from "@/types";
 
 function ProductDetail() {
@@ -16,9 +17,9 @@ function ProductDetail() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(0);
+  const [option, setOption] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Live product (price / stock / availability update while the page is open).
   useEffect(() => {
     if (!productId) return;
     const unsub = watchProduct(productId, (p) => {
@@ -28,7 +29,6 @@ function ProductDetail() {
     return () => unsub();
   }, [productId]);
 
-  // Live shop header once we know the shopId.
   useEffect(() => {
     if (!product?.shopId) return;
     const unsub = watchShopById(product.shopId, setShop);
@@ -42,11 +42,33 @@ function ProductDetail() {
     return <p className="mx-auto max-w-4xl px-5 py-16 text-muted">Product not found.</p>;
   }
 
-  const gallery = product.images.length ? product.images : [product.coverImage].filter(Boolean);
-  const line = items.find((i) => i.productId === product.id);
+  const variant = hasOptions(product);
+  const gallery = product.images.length
+    ? product.images
+    : [product.coverImage].filter(Boolean);
+
+  // For a variant product the buyer must pick an option before adding.
+  const chosen = variant ? option : null;
+  const canAct = !variant || chosen !== null;
+  const stock = stockFor(product, chosen);
+  const outOfStock = canAct && stock <= 0;
+  const price = priceFor(product, chosen);
+
+  const line = items.find(
+    (i) => i.productId === product.id && (i.optionName ?? null) === chosen
+  );
   const qty = line?.quantity ?? 0;
-  const outOfStock = product.quantity <= 0;
-  const maxReached = product.quantity > 0 && qty >= product.quantity;
+  const maxReached = stock > 0 && qty >= stock;
+
+  const add = () => {
+    if (variant && chosen === null) {
+      setNotice("Pick an option first.");
+      return;
+    }
+    if (addItem(product, product.shopId, chosen ?? undefined) === "different-shop") {
+      setNotice("You can order from only one shop at a time.");
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-10">
@@ -92,7 +114,36 @@ function ProductDetail() {
             </Link>
           )}
           <h1 className="font-display text-3xl mt-1">{product.name}</h1>
-          <p className="text-2xl font-medium mt-3">₹{product.price.toFixed(0)}</p>
+          <p className="text-2xl font-medium mt-3">
+            {canAct ? `₹${price.toFixed(0)}` : priceLabel(product)}
+          </p>
+
+          {variant && (
+            <div className="mt-4">
+              <p className="text-sm text-muted mb-2">
+                {product.optionLabel || "Options"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {product.options!.map((o) => {
+                  const sold = o.quantity <= 0;
+                  return (
+                    <button
+                      key={o.name}
+                      disabled={sold}
+                      onClick={() => setOption(o.name)}
+                      className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                        option === o.name
+                          ? "border-accent bg-accent/10 text-accent-ink"
+                          : "border-line hover:border-ink/30"
+                      } ${sold ? "opacity-40 line-through cursor-not-allowed" : ""}`}
+                    >
+                      {o.name} · ₹{o.price.toFixed(0)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <p className="text-ink/70 mt-4 whitespace-pre-line">
             {product.description || "No description provided."}
@@ -111,25 +162,22 @@ function ProductDetail() {
               <p className="text-danger font-medium">Sold out</p>
             ) : qty === 0 ? (
               <button
-                onClick={() => {
-                  if (addItem(product, product.shopId) === "different-shop")
-                    setNotice("You can order from only one shop at a time.");
-                }}
+                onClick={add}
                 className="rounded-full bg-accent text-white px-8 py-3 font-medium hover:bg-accent/90 transition-colors"
               >
-                Add to cart
+                {variant && chosen === null ? "Select an option" : "Add to cart"}
               </button>
             ) : (
               <div className="inline-flex items-center gap-4 rounded-full border border-line px-4 py-2">
                 <button
-                  onClick={() => updateQuantity(product.id, qty - 1)}
+                  onClick={() => updateQuantity(product.id, qty - 1, chosen ?? undefined)}
                   className="w-8 h-8 rounded-full border border-line hover:border-ink/40"
                 >
                   −
                 </button>
                 <span className="w-6 text-center">{qty}</span>
                 <button
-                  onClick={() => updateQuantity(product.id, qty + 1)}
+                  onClick={() => updateQuantity(product.id, qty + 1, chosen ?? undefined)}
                   disabled={maxReached}
                   className="w-8 h-8 rounded-full border border-line hover:border-ink/40 disabled:opacity-40"
                 >

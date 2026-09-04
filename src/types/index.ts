@@ -57,6 +57,13 @@ export interface Shop {
 
 export type DeliveryUnit = "minutes" | "hours" | "days";
 
+/** A selectable option within one listing — e.g. { name: "500g", price: 120, quantity: 30 }. */
+export interface ProductOption {
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface Product {
   id: string;
   shopId: string;
@@ -76,6 +83,16 @@ export interface Product {
   deliveryMaxValue?: number;
   deliveryMinMinutes?: number;
   deliveryMaxMinutes?: number;
+  // Optional variant axis. Absent => simple product (unchanged behaviour).
+  // With options: buyer picks one; that option's price + quantity apply. Root
+  // `price` = cheapest option, root `quantity` = sum of option quantities.
+  optionLabel?: string; // "Weight" | "Size" | "Colour" | custom
+  options?: ProductOption[];
+}
+
+/** Composite cart-line / order-item key: productId, plus option name when set. */
+export function lineKey(productId: string, optionName?: string | null): string {
+  return optionName ? `${productId}|${optionName}` : productId;
 }
 
 export interface SellerPlan {
@@ -104,6 +121,8 @@ export interface CartItem {
   sellerId: string;
   shopId: string;
   quantity: number;
+  /** Set when the buyer chose a variant option (e.g. "500g"). */
+  optionName?: string;
 }
 
 export interface OrderItem {
@@ -111,6 +130,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
+  optionName?: string;
 }
 
 export interface Order {
