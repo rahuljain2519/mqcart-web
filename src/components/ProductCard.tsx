@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { hasOptions, priceLabel, stockFor } from "@/lib/product";
 import type { Product } from "@/types";
@@ -33,14 +34,14 @@ export default function ProductCard({
   return (
     <div className="border border-line rounded-2xl bg-surface overflow-hidden flex flex-col shadow-[0_4px_16px_-6px_rgba(255,122,0,0.18)]">
       <Link href={`/product/${product.id}`} className="block relative">
-        <div className="aspect-square bg-green-bg">
+        <div className="relative aspect-square bg-green-bg">
           {product.coverImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={product.coverImage}
               alt={product.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full grid place-items-center text-muted text-sm">

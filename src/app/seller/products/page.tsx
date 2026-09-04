@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -456,10 +457,9 @@ function ProductsManager() {
         <ul className="border border-line rounded-2xl bg-surface divide-y divide-line">
           {products.map((p) => (
             <li key={p.id} className="p-4 flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-green-bg shrink-0 overflow-hidden">
+              <div className="relative w-14 h-14 rounded-xl bg-green-bg shrink-0 overflow-hidden">
                 {p.coverImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.coverImage} alt="" className="w-full h-full object-cover" />
+                  <Image src={p.coverImage} alt="" fill sizes="56px" className="object-cover" />
                 ) : null}
               </div>
               <div className="flex-1 min-w-0">

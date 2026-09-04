@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
@@ -48,20 +49,23 @@ function ShopDetail() {
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">
       <div className="flex-1">
         {shop.bannerUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={shop.bannerUrl}
-            alt=""
-            className="w-full h-40 md:h-52 object-cover"
-          />
+          <div className="relative w-full h-40 md:h-52">
+            <Image
+              src={shop.bannerUrl}
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover"
+              priority
+            />
+          </div>
         )}
 
         <div className="mx-auto max-w-6xl px-5 py-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full overflow-hidden bg-green-bg shrink-0">
+            <div className="relative w-16 h-16 rounded-full overflow-hidden bg-green-bg shrink-0">
               {shop.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={shop.logoUrl} alt="" className="w-full h-full object-cover" />
+                <Image src={shop.logoUrl} alt="" fill sizes="64px" className="object-cover" />
               ) : null}
             </div>
             <div>

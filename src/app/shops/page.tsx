@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { watchShopsBySociety } from "@/lib/data";
@@ -76,21 +77,21 @@ function ShopsList() {
                   href={`/shop/${shop.shopId}`}
                   className="block border border-line rounded-2xl bg-surface overflow-hidden hover:border-ink/30 transition-colors h-full shadow-[0_4px_16px_-6px_rgba(255,122,0,0.18)]"
                 >
-                  <div className="h-28 bg-green-bg">
+                  <div className="relative h-28 bg-green-bg">
                     {shop.bannerUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={shop.bannerUrl} alt="" className="w-full h-full object-cover" />
+                      <Image
+                        src={shop.bannerUrl}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover"
+                      />
                     ) : null}
                   </div>
                   <div className="p-4 flex gap-3">
-                    <div className="w-11 h-11 rounded-full overflow-hidden bg-green-bg shrink-0 -mt-8 border-2 border-surface">
+                    <div className="relative w-11 h-11 rounded-full overflow-hidden bg-green-bg shrink-0 -mt-8 border-2 border-surface">
                       {shop.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={shop.logoUrl}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
+                        <Image src={shop.logoUrl} alt="" fill sizes="44px" className="object-cover" />
                       ) : null}
                     </div>
                     <div className="min-w-0">

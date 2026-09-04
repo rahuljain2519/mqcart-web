@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { getShopBySeller, watchShopById, watchProductsByShop } from "@/lib/data";
@@ -49,16 +50,16 @@ function Preview() {
       </div>
 
       {shop.bannerUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={shop.bannerUrl} alt="" className="w-full h-40 md:h-52 object-cover" />
+        <div className="relative w-full h-40 md:h-52">
+          <Image src={shop.bannerUrl} alt="" fill sizes="100vw" className="object-cover" />
+        </div>
       )}
 
       <div className="mx-auto max-w-6xl px-5 py-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full overflow-hidden bg-green-bg shrink-0">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-green-bg shrink-0">
             {shop.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.logoUrl} alt="" className="w-full h-full object-cover" />
+              <Image src={shop.logoUrl} alt="" fill sizes="64px" className="object-cover" />
             ) : null}
           </div>
           <div>
@@ -88,13 +89,14 @@ function Preview() {
                 key={p.id}
                 className="border border-line rounded-2xl bg-surface overflow-hidden"
               >
-                <div className="aspect-square bg-green-bg">
+                <div className="relative aspect-square bg-green-bg">
                   {p.coverImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={p.coverImage}
                       alt={p.name}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 640px) 50vw, 25vw"
+                      className="object-cover"
                     />
                   ) : (
                     <div className="w-full h-full grid place-items-center text-muted text-sm">

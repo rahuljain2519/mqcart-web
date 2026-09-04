@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
@@ -74,13 +75,15 @@ function ProductDetail() {
     <div className="mx-auto max-w-4xl px-5 py-10">
       <div className="grid md:grid-cols-2 gap-8">
         <div>
-          <div className="aspect-square rounded-2xl overflow-hidden bg-green-bg">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-green-bg">
             {gallery[active] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={gallery[active]}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 40vw"
+                className="object-cover"
+                priority
               />
             ) : (
               <div className="w-full h-full grid place-items-center text-muted">No image</div>
@@ -92,12 +95,11 @@ function ProductDetail() {
                 <button
                   key={i}
                   onClick={() => setActive(i)}
-                  className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
+                  className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 ${
                     i === active ? "border-accent" : "border-transparent"
                   }`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <Image src={src} alt="" fill sizes="64px" className="object-cover" />
                 </button>
               ))}
             </div>

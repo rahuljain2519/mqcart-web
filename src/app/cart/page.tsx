@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
 import { watchProductsByIds } from "@/lib/data";
@@ -52,10 +53,9 @@ function CartView() {
           const maxReached = live !== undefined && item.quantity >= live;
           return (
             <li key={lineKey(item.productId, item.optionName)} className="p-4 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-green-bg shrink-0 overflow-hidden">
+              <div className="relative w-16 h-16 rounded-xl bg-green-bg shrink-0 overflow-hidden">
                 {item.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <Image src={item.imageUrl} alt="" fill sizes="64px" className="object-cover" />
                 ) : null}
               </div>
               <div className="flex-1 min-w-0">
