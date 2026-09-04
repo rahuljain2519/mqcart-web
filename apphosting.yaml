@@ -1,0 +1,22 @@
+# Firebase App Hosting configuration
+# https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  # Scale to zero when idle to keep costs minimal for launch.
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+# Environment variables and secrets available to the build and/or runtime.
+# The Firebase web config is already baked into src/lib/firebase.ts as
+# non-secret fallbacks, so nothing is required here. To override per-backend,
+# uncomment and set values (or use `firebase apphosting:secrets:set` for secrets).
+#
+# env:
+#   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+#     value: mqcart-prod
+#     availability:
+#       - BUILD
+#       - RUNTIME
