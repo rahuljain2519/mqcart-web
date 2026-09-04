@@ -7,10 +7,13 @@ import type { Product } from "@/types";
 export default function ProductCard({
   product,
   onMultiShop,
+  deliveryLabel,
 }: {
   product: Product;
   /** Called when the item can't be added because the cart holds another shop. */
   onMultiShop?: () => void;
+  /** Optional "2–3 days" style ETA shown on the card (used where the shop is known). */
+  deliveryLabel?: string;
 }) {
   const { items, addItem, updateQuantity } = useCart();
 
@@ -24,8 +27,8 @@ export default function ProductCard({
   };
 
   return (
-    <div className="border border-line rounded-2xl bg-surface overflow-hidden flex flex-col">
-      <Link href={`/product/${product.id}`} className="block">
+    <div className="border border-line rounded-2xl bg-surface overflow-hidden flex flex-col shadow-[0_4px_16px_-6px_rgba(255,122,0,0.18)]">
+      <Link href={`/product/${product.id}`} className="block relative">
         <div className="aspect-square bg-green-bg">
           {product.coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -41,6 +44,11 @@ export default function ProductCard({
             </div>
           )}
         </div>
+        {deliveryLabel && (
+          <span className="absolute top-2 left-2 rounded-full bg-surface/90 backdrop-blur px-2 py-0.5 text-[11px] font-medium text-ink/80">
+            🛵 {deliveryLabel}
+          </span>
+        )}
       </Link>
 
       <div className="p-3 flex flex-col gap-1 flex-1">

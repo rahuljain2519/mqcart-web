@@ -6,6 +6,8 @@ import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { watchShopsBySociety } from "@/lib/data";
 import CartBar from "@/components/CartBar";
+import AddressBar from "@/components/AddressBar";
+import { Skeleton } from "@/components/Skeleton";
 import type { Shop } from "@/types";
 
 function ShopsList() {
@@ -29,7 +31,10 @@ function ShopsList() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">
-      <div className="mx-auto w-full max-w-6xl px-5 py-10 flex-1">
+      <div className="mx-auto w-full max-w-6xl px-5 py-6 flex-1">
+        <div className="mb-4">
+          <AddressBar />
+        </div>
         <h1 className="font-display text-3xl mb-1">Shops near you</h1>
         <p className="text-muted mb-6">Sellers active inside your society right now.</p>
 
@@ -41,7 +46,17 @@ function ShopsList() {
         />
 
         {shops === null ? (
-          <p className="text-muted">Loading shops…</p>
+          <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <li key={i} className="border border-line rounded-2xl overflow-hidden">
+                <Skeleton className="h-28 rounded-none" />
+                <div className="p-4 space-y-2">
+                  <Skeleton className="h-4 w-3/5" />
+                  <Skeleton className="h-3 w-4/5" />
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : shown.length === 0 ? (
           <div className="border border-line rounded-2xl bg-surface p-10 text-center">
             <p className="font-medium mb-1">No shops here yet</p>
@@ -59,7 +74,7 @@ function ShopsList() {
               <li key={shop.shopId}>
                 <Link
                   href={`/shop/${shop.shopId}`}
-                  className="block border border-line rounded-2xl bg-surface overflow-hidden hover:border-ink/30 transition-colors h-full"
+                  className="block border border-line rounded-2xl bg-surface overflow-hidden hover:border-ink/30 transition-colors h-full shadow-[0_4px_16px_-6px_rgba(255,122,0,0.18)]"
                 >
                   <div className="h-28 bg-green-bg">
                     {shop.bannerUrl ? (

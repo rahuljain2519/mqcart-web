@@ -9,7 +9,7 @@ export default function CartBar() {
   if (count === 0) return null;
 
   return (
-    <div className="sticky bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur">
+    <div className="sticky bottom-16 md:bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur">
       <div className="mx-auto max-w-6xl px-5 py-3 flex items-center justify-between">
         <span className="font-medium text-sm">
           {count} item{count > 1 ? "s" : ""} · ₹{total.toFixed(0)}

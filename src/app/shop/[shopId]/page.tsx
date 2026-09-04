@@ -98,6 +98,7 @@ function ShopDetail() {
                 <li key={p.id}>
                   <ProductCard
                     product={p}
+                    deliveryLabel={`${shop.deliveryMinValue}–${shop.deliveryMaxValue} ${shop.deliveryUnit}`}
                     onMultiShop={() =>
                       setNotice("You can order from only one shop at a time.")
                     }

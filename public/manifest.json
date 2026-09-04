@@ -1,0 +1,13 @@
+{
+  "name": "mqcart — your society's shops, online",
+  "short_name": "mqcart",
+  "description": "Order from the shops inside your own residential society.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbf7f0",
+  "theme_color": "#ff7a00",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" }
+  ]
+}

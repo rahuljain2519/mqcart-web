@@ -5,6 +5,7 @@ import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { watchOrdersByBuyer } from "@/lib/data";
+import { timeAgo } from "@/lib/format";
 import type { Order, OrderStatus } from "@/types";
 
 const CHIP: Record<OrderStatus, string> = {
@@ -92,8 +93,11 @@ function OrderCard({ order }: { order: Order }) {
         ))}
       </ul>
 
-      <p className="text-xs text-muted mt-3">
-        {order.createdAt ? new Date(order.createdAt).toLocaleString() : ""}
+      <p
+        className="text-xs text-muted mt-3"
+        title={order.createdAt ? new Date(order.createdAt).toLocaleString() : ""}
+      >
+        {timeAgo(order.createdAt)}
       </p>
     </li>
   );
@@ -120,7 +124,13 @@ function OrdersView() {
       {orders === null ? (
         <p className="text-muted">Loading…</p>
       ) : orders.length === 0 ? (
-        <p className="text-muted">You haven&rsquo;t placed any orders yet.</p>
+        <div className="py-16 text-center">
+          <div className="text-4xl mb-2">🧾</div>
+          <p className="font-medium">No orders yet</p>
+          <p className="text-sm text-muted">
+            Your orders and their status will show up here.
+          </p>
+        </div>
       ) : (
         <div className="space-y-8">
           {active.length > 0 && (

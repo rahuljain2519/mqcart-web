@@ -28,13 +28,13 @@ export default function NavBar() {
           { href: "/seller/orders", label: "Orders" },
         ]
       : [
-          { href: "/", label: "Shop" },
+          { href: "/", label: "Home" },
           { href: "/shops", label: "Shops" },
           { href: "/orders", label: "My orders" },
         ];
 
   return (
-    <header className="border-b border-line bg-surface">
+    <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
       <div className="mx-auto max-w-6xl px-5 flex items-center justify-between h-16">
         <Link href="/" className="font-display text-2xl tracking-tight text-ink">
           mqcart

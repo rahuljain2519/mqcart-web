@@ -16,6 +16,19 @@ export const CATEGORIES = [
   "Art & Decor",
 ] as const;
 
+export const CATEGORY_EMOJI: Record<string, string> = {
+  All: "🛒",
+  Grocery: "🥬",
+  Bakery: "🍞",
+  Snacks: "🍿",
+  "Personal Care": "🧴",
+  "Home & Utility": "🏠",
+  Stationery: "✏️",
+  Fashion: "👗",
+  Food: "🍱",
+  "Art & Decor": "🎨",
+};
+
 export function matchesCategory(productCategory: string, selected: string): boolean {
   if (selected === "All") return true;
   const p = productCategory.toLowerCase().trim();
