@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  documentId,
   getDoc,
   getDocs,
   addDoc,
@@ -115,6 +116,94 @@ export async function getProduct(productId: string): Promise<Product | null> {
   const snap = await getDoc(doc(db, "products", productId));
   if (!snap.exists()) return null;
   return { id: productId, ...(snap.data() as Omit<Product, "id">) };
+}
+
+/* ------------------------------ Realtime watchers -------------------------- */
+// The mobile app is stream-first (Firestore snapshots); these give the web the
+// same live behaviour. Each returns an unsubscribe function.
+
+const mapProducts = (docs: { id: string; data: () => unknown }[]): Product[] =>
+  docs.map((s) => ({ id: s.id, ...(s.data() as Omit<Product, "id">) }));
+
+const mapShops = (docs: { id: string; data: () => unknown }[]): Shop[] =>
+  docs.map((s) => ({ shopId: s.id, ...(s.data() as Omit<Shop, "shopId">) }));
+
+export function watchShopsBySociety(
+  societyId: string,
+  cb: (shops: Shop[]) => void
+) {
+  const q = query(
+    collection(db, "shops"),
+    where("societyId", "==", societyId),
+    where("isActive", "==", true)
+  );
+  return onSnapshot(q, (snap) => cb(mapShops(snap.docs)));
+}
+
+/** Active products across the buyer's whole society — the app's Home feed. */
+export function watchProductsBySociety(
+  societyId: string,
+  cb: (products: Product[]) => void
+) {
+  const q = query(
+    collection(db, "products"),
+    where("societyId", "==", societyId),
+    where("isActive", "==", true)
+  );
+  return onSnapshot(q, (snap) => cb(mapProducts(snap.docs)));
+}
+
+/** Active products for one shop — the buyer's shop page. */
+export function watchProductsByShop(
+  shopId: string,
+  cb: (products: Product[]) => void
+) {
+  const q = query(
+    collection(db, "products"),
+    where("shopId", "==", shopId),
+    where("isActive", "==", true)
+  );
+  return onSnapshot(q, (snap) => cb(mapProducts(snap.docs)));
+}
+
+/** Watch specific product docs by id (cart stock reconciliation). Max 30 ids. */
+export function watchProductsByIds(
+  ids: string[],
+  cb: (products: Product[]) => void
+) {
+  if (ids.length === 0) {
+    cb([]);
+    return () => {};
+  }
+  const q = query(
+    collection(db, "products"),
+    where(documentId(), "in", ids.slice(0, 30))
+  );
+  return onSnapshot(q, (snap) => cb(mapProducts(snap.docs)));
+}
+
+export function watchOrdersByBuyer(
+  buyerId: string,
+  cb: (orders: Order[]) => void
+) {
+  const q = query(
+    collection(db, "orders"),
+    where("buyerId", "==", buyerId),
+    orderBy("createdAt", "desc")
+  );
+  return onSnapshot(q, (snap) =>
+    cb(
+      snap.docs.map((s) => {
+        const d = s.data();
+        return {
+          id: s.id,
+          ...d,
+          createdAt: toDate(d.createdAt),
+          updatedAt: toDate(d.updatedAt),
+        } as Order;
+      })
+    )
+  );
 }
 
 export async function addProduct(product: Omit<Product, "id">) {

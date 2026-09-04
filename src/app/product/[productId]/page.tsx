@@ -1,0 +1,146 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import RoleGuard from "@/components/RoleGuard";
+import { useCart } from "@/context/CartContext";
+import { getProduct, getShop } from "@/lib/data";
+import type { Product, Shop } from "@/types";
+
+function ProductDetail() {
+  const { productId } = useParams<{ productId: string }>();
+  const { items, addItem, updateQuantity } = useCart();
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!productId) return;
+    getProduct(productId)
+      .then(async (p) => {
+        setProduct(p);
+        if (p) setShop(await getShop(p.shopId));
+      })
+      .finally(() => setLoading(false));
+  }, [productId]);
+
+  if (loading) {
+    return <p className="mx-auto max-w-4xl px-5 py-16 text-muted">Loading…</p>;
+  }
+  if (!product) {
+    return <p className="mx-auto max-w-4xl px-5 py-16 text-muted">Product not found.</p>;
+  }
+
+  const gallery = product.images.length ? product.images : [product.coverImage].filter(Boolean);
+  const line = items.find((i) => i.productId === product.id);
+  const qty = line?.quantity ?? 0;
+  const outOfStock = product.quantity <= 0;
+  const maxReached = product.quantity > 0 && qty >= product.quantity;
+
+  return (
+    <div className="mx-auto max-w-4xl px-5 py-10">
+      <div className="grid md:grid-cols-2 gap-8">
+        <div>
+          <div className="aspect-square rounded-2xl overflow-hidden bg-green-bg">
+            {gallery[active] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={gallery[active]}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full grid place-items-center text-muted">No image</div>
+            )}
+          </div>
+          {gallery.length > 1 && (
+            <div className="flex gap-2 mt-3">
+              {gallery.map((src, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActive(i)}
+                  className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
+                    i === active ? "border-accent" : "border-transparent"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {shop && (
+            <Link
+              href={`/shop/${shop.shopId}`}
+              className="text-sm text-muted hover:text-ink underline underline-offset-4"
+            >
+              {shop.shopName}
+            </Link>
+          )}
+          <h1 className="font-display text-3xl mt-1">{product.name}</h1>
+          <p className="text-2xl font-medium mt-3">₹{product.price.toFixed(0)}</p>
+
+          <p className="text-ink/70 mt-4 whitespace-pre-line">
+            {product.description || "No description provided."}
+          </p>
+
+          {shop && (
+            <p className="text-sm text-muted mt-4">
+              Delivery in {shop.deliveryMinValue}–{shop.deliveryMaxValue} {shop.deliveryUnit}
+            </p>
+          )}
+
+          {notice && <p className="text-sm text-danger mt-4">{notice}</p>}
+
+          <div className="mt-6">
+            {outOfStock ? (
+              <p className="text-danger font-medium">Sold out</p>
+            ) : qty === 0 ? (
+              <button
+                onClick={() => {
+                  if (addItem(product, product.shopId) === "different-shop")
+                    setNotice("You can order from only one shop at a time.");
+                }}
+                className="rounded-full bg-accent text-white px-8 py-3 font-medium hover:bg-accent/90 transition-colors"
+              >
+                Add to cart
+              </button>
+            ) : (
+              <div className="inline-flex items-center gap-4 rounded-full border border-line px-4 py-2">
+                <button
+                  onClick={() => updateQuantity(product.id, qty - 1)}
+                  className="w-8 h-8 rounded-full border border-line hover:border-ink/40"
+                >
+                  −
+                </button>
+                <span className="w-6 text-center">{qty}</span>
+                <button
+                  onClick={() => updateQuantity(product.id, qty + 1)}
+                  disabled={maxReached}
+                  className="w-8 h-8 rounded-full border border-line hover:border-ink/40 disabled:opacity-40"
+                >
+                  +
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ProductPage() {
+  return (
+    <RoleGuard allow={["buyer"]}>
+      <ProductDetail />
+    </RoleGuard>
+  );
+}
