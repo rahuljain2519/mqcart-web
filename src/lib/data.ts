@@ -673,10 +673,100 @@ export async function decideSellerApplication(
   );
 }
 
+export function watchMyApplication(
+  uid: string,
+  cb: (app: SellerApplication | null) => void
+) {
+  return onSnapshot(doc(db, "seller_applications", uid), (snap) =>
+    cb(
+      snap.exists()
+        ? ({ ...(snap.data() as SellerApplication), createdAt: toDate(snap.data().createdAt) })
+        : null
+    )
+  );
+}
+
 /* ----------------------------------- Admin ----------------------------------- */
 
 export async function getAnalyticsOverview(): Promise<AnalyticsOverview | null> {
   const snap = await getDoc(doc(db, "analytics_overview", "current"));
   if (!snap.exists()) return null;
   return snap.data() as AnalyticsOverview;
+}
+
+export function watchAnalyticsOverview(cb: (o: AnalyticsOverview | null) => void) {
+  return onSnapshot(doc(db, "analytics_overview", "current"), (snap) =>
+    cb(snap.exists() ? (snap.data() as AnalyticsOverview) : null)
+  );
+}
+
+/* --- Societies (admin) --- */
+
+export async function listAllSocieties(): Promise<Society[]> {
+  const snap = await getDocs(collection(db, "societies"));
+  return snap.docs.map((s) => ({ id: s.id, ...(s.data() as Omit<Society, "id">) }));
+}
+
+export async function createSociety(name: string, city: string) {
+  return addDoc(collection(db, "societies"), {
+    name: name.trim(),
+    city: city.trim(),
+    isActive: true,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function deleteSociety(societyId: string) {
+  return deleteDoc(doc(db, "societies", societyId));
+}
+
+/* --- Users / sellers (admin) --- */
+
+export async function listUsersByRole(role: string): Promise<AppUser[]> {
+  const snap = await getDocs(
+    query(collection(db, "users"), where("role", "==", role))
+  );
+  return snap.docs.map((s) => {
+    const d = s.data();
+    return {
+      uid: s.id,
+      name: d.name ?? "",
+      phone: d.phone ?? "",
+      role: d.role ?? "buyer",
+      societyId: d.societyId ?? "",
+      flatNumber: d.flatNumber ?? "",
+      sellerStatus: d.sellerStatus ?? "none",
+      shopId: d.shopId ?? null,
+    };
+  });
+}
+
+export async function adminUpdateUser(
+  uid: string,
+  patch: { role?: string; societyId?: string }
+) {
+  return updateDoc(doc(db, "users", uid), { ...patch, updatedAt: serverTimestamp() });
+}
+
+/** Toggle a shop active/inactive and cascade to all its products (admin). */
+export async function toggleShopActive(shopId: string, makeActive: boolean) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, "shops", shopId), {
+    isActive: makeActive,
+    activationStatus: makeActive ? "active" : "inactive",
+    updatedAt: serverTimestamp(),
+  });
+  const products = await getDocs(
+    query(collection(db, "products"), where("shopId", "==", shopId))
+  );
+  products.docs.forEach((d) => batch.update(d.ref, { isActive: makeActive }));
+  await batch.commit();
+}
+
+export async function getSellerApplication(
+  uid: string
+): Promise<SellerApplication | null> {
+  const snap = await getDoc(doc(db, "seller_applications", uid));
+  if (!snap.exists()) return null;
+  return { ...(snap.data() as SellerApplication), createdAt: toDate(snap.data().createdAt) };
 }

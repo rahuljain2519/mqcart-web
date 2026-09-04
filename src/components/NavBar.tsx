@@ -17,7 +17,9 @@ export default function NavBar() {
     profile?.role === "admin"
       ? [
           { href: "/admin", label: "Overview" },
-          { href: "/admin/sellers", label: "Seller applications" },
+          { href: "/admin/societies", label: "Societies" },
+          { href: "/admin/users", label: "Sellers" },
+          { href: "/admin/sellers", label: "Applications" },
         ]
       : profile?.role === "seller"
       ? [
@@ -26,6 +28,7 @@ export default function NavBar() {
           { href: "/seller/orders", label: "Orders" },
         ]
       : [
+          { href: "/", label: "Shop" },
           { href: "/shops", label: "Shops" },
           { href: "/orders", label: "My orders" },
         ];

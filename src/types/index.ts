@@ -1,5 +1,13 @@
 export type UserRole = "buyer" | "seller" | "admin";
-export type SellerStatus = "none" | "pending" | "active" | "inactive";
+// Values the app actually writes across its flow:
+// none -> pending -> approved -> active, or rejected / inactive.
+export type SellerStatus =
+  | "none"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "active"
+  | "inactive";
 // Matches the mobile app: placed -> accepted -> delivered, or rejected.
 export type OrderStatus = "placed" | "accepted" | "delivered" | "rejected";
 export type PaymentMethod = "cod" | "razorpay";
@@ -136,6 +144,9 @@ export interface SellerApplication {
   city: string;
   state: string;
   pincode: string;
+  bankAccountNumber?: string;
+  ifscCode?: string;
+  bankName?: string;
   status: "pending" | "approved" | "rejected";
   createdAt?: Date | null;
 }
@@ -145,4 +156,6 @@ export interface AnalyticsOverview {
   gmvToday: number;
   ordersMonth: number;
   gmvMonth: number;
+  activeSellers?: number;
+  activeBuyers?: number;
 }
