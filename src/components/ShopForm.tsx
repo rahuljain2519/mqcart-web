@@ -6,6 +6,7 @@ import {
   updateShop,
   linkShopToUser,
   toMinutes,
+  getSellerApplication,
 } from "@/lib/data";
 import { uploadShopImage } from "@/lib/storage";
 import type { DeliveryUnit, Shop } from "@/types";
@@ -53,6 +54,9 @@ export default function ShopForm({
       let shopId = shop?.shopId ?? "";
 
       if (mode === "create") {
+        // Category was captured once at application time; copy it onto the
+        // shop so shops can eventually be browsed/filtered by category too.
+        const application = await getSellerApplication(sellerId);
         shopId = await createShop({
           sellerId,
           societyId,
@@ -60,6 +64,7 @@ export default function ShopForm({
           deliveryUnit: unit,
           deliveryMinValue: min,
           deliveryMaxValue: max,
+          category: application?.category,
         });
       }
 

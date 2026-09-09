@@ -124,12 +124,14 @@ export async function createShop(input: {
   deliveryMaxValue: number;
   logoUrl?: string;
   bannerUrl?: string;
+  category?: string;
 }): Promise<string> {
   const existing = await getShopBySeller(input.sellerId);
   const payload = {
     sellerId: input.sellerId,
     societyId: input.societyId,
     shopName: input.shopName.trim(),
+    ...(input.category ? { category: input.category } : {}),
     description: "",
     logoUrl: input.logoUrl ?? "",
     bannerUrl: input.bannerUrl ?? "",

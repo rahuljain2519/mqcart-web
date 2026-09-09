@@ -67,3 +67,70 @@ export function matchesCategory(productCategory: string, selected: string): bool
   if (selected === "All") return true;
   return normalizeCategory(productCategory) === selected;
 }
+
+// Second-level taxonomy, product-only (shops keep a flat category). Additive —
+// existing products simply have no subcategory and keep working unchanged.
+export const SUBCATEGORIES: Record<string, string[]> = {
+  Grocery: [
+    "Fruits & Vegetables",
+    "Atta, Rice & Dal",
+    "Masalas & Cooking Oils",
+    "Dairy & Eggs",
+    "Breakfast & Cereals",
+    "Tea, Coffee & Beverages",
+    "Packaged Food",
+    "Other",
+  ],
+  Bakery: ["Bread & Buns", "Cakes & Pastries", "Cookies & Rusks", "Other"],
+  Snacks: [
+    "Chips & Namkeen",
+    "Chocolates & Candies",
+    "Ice Cream & Frozen Desserts",
+    "Noodles & Instant Food",
+    "Other",
+  ],
+  "Personal Care": [
+    "Bath & Body",
+    "Hair Care",
+    "Oral Care",
+    "Skin Care",
+    "Feminine Hygiene",
+    "Baby Care",
+    "Other",
+  ],
+  "Home & Utility": [
+    "Cleaning Supplies",
+    "Kitchen & Dining",
+    "Electricals & Batteries",
+    "Pooja Needs",
+    "Other",
+  ],
+  Stationery: [
+    "Notebooks & Paper",
+    "Pens & Writing",
+    "Art Supplies",
+    "Office Supplies",
+    "Other",
+  ],
+  Fashion: [
+    "Men's Wear",
+    "Women's Wear",
+    "Kids' Wear",
+    "Footwear",
+    "Accessories",
+    "Other",
+  ],
+  Food: ["Ready to Eat", "Sweets", "Beverages", "Tiffin & Meals", "Other"],
+  "Art & Decor": [
+    "Wall Decor",
+    "Showpieces",
+    "Plants & Pots",
+    "Festive Decor",
+    "Other",
+  ],
+  Other: ["Other"],
+};
+
+export function subcategoriesFor(category: string): string[] {
+  return SUBCATEGORIES[normalizeCategory(category)] ?? ["Other"];
+}

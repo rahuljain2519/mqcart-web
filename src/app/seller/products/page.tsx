@@ -15,7 +15,7 @@ import {
   validateProductLimit,
 } from "@/lib/data";
 import { uploadProductImages } from "@/lib/storage";
-import { PRODUCT_CATEGORIES } from "@/lib/categories";
+import { PRODUCT_CATEGORIES, subcategoriesFor } from "@/lib/categories";
 import type { Shop, Product } from "@/types";
 
 const CATEGORIES = PRODUCT_CATEGORIES;
@@ -26,6 +26,7 @@ type FormState = {
   id?: string;
   name: string;
   category: string;
+  subcategory: string;
   price: string;
   quantity: string;
   description: string;
@@ -39,6 +40,7 @@ type FormState = {
 const EMPTY: FormState = {
   name: "",
   category: "",
+  subcategory: "",
   price: "",
   quantity: "",
   description: "",
@@ -101,6 +103,12 @@ function ProductsManager() {
       id: p.id,
       name: p.name,
       category: p.category || "",
+      // Fall back to unset if the stored subcategory doesn't match the
+      // current list for this category (e.g. taxonomy changed since save).
+      subcategory:
+        p.subcategory && subcategoriesFor(p.category || "").includes(p.subcategory)
+          ? p.subcategory
+          : "",
       price: String(p.price),
       quantity: String(p.quantity),
       description: p.description,
@@ -174,6 +182,7 @@ function ProductsManager() {
         price,
         quantity,
         category: form.category,
+        ...(form.subcategory ? { subcategory: form.subcategory } : {}),
         description: form.description.trim(),
         images,
         coverImage,
@@ -262,7 +271,9 @@ function ProductsManager() {
             <select
               required
               value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, category: e.target.value, subcategory: "" })
+              }
               className="in"
             >
               <option value="" disabled>
@@ -275,6 +286,22 @@ function ProductsManager() {
               ))}
             </select>
           </F>
+          {form.category && (
+            <F label="Subcategory (optional)">
+              <select
+                value={form.subcategory}
+                onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
+                className="in"
+              >
+                <option value="">Not specified</option>
+                {subcategoriesFor(form.category).map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </F>
+          )}
           {form.options.length === 0 && (
             <>
               <F label="Price (₹)">

@@ -36,6 +36,8 @@ export interface Shop {
   sellerId: string;
   societyId: string;
   shopName: string;
+  /** Copied from the seller's application at shop-creation time. Older shops predate this field. */
+  category?: string;
   description: string;
   logoUrl: string;
   bannerUrl: string;
@@ -73,6 +75,7 @@ export interface Product {
   price: number;
   quantity: number;
   category: string;
+  subcategory?: string;
   description: string;
   images: string[];
   coverImage: string;
