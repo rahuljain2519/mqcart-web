@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { watchShopById, watchProductsByShop } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CartBar from "@/components/CartBar";
+import { CATEGORIES, CATEGORY_EMOJI, matchesCategory } from "@/lib/categories";
 import type { Shop, Product } from "@/types";
 
 function ShopDetail() {
@@ -17,6 +18,7 @@ function ShopDetail() {
   const [shop, setShop] = useState<Shop | null | undefined>(undefined);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string>("All");
   const [notice, setNotice] = useState<string | null>(null);
   const loadingShop = shop === undefined;
 
@@ -33,8 +35,12 @@ function ShopDetail() {
   const shown = useMemo(() => {
     if (!products) return [];
     const q = search.toLowerCase().trim();
-    return products.filter((p) => q === "" || p.name.toLowerCase().includes(q));
-  }, [products, search]);
+    return products.filter(
+      (p) =>
+        (q === "" || p.name.toLowerCase().includes(q)) &&
+        matchesCategory(p.category, category)
+    );
+  }, [products, search, category]);
 
   if (loadingShop) {
     return <p className="mx-auto max-w-6xl px-5 py-12 text-muted">Loading…</p>;
@@ -86,6 +92,23 @@ function ShopDetail() {
             className="w-full border border-line rounded-full px-5 py-2.5 bg-surface mt-6"
           />
 
+          <div className="flex gap-2 overflow-x-auto pt-3 -mx-5 px-5 no-scrollbar">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={`shrink-0 rounded-full pl-2 pr-3 py-1.5 text-sm border transition-colors flex items-center gap-1 ${
+                  category === c
+                    ? "border-accent bg-accent/10 text-accent-ink"
+                    : "border-line hover:border-ink/30"
+                }`}
+              >
+                <span aria-hidden>{CATEGORY_EMOJI[c]}</span>
+                {c}
+              </button>
+            ))}
+          </div>
+
           {blockedByOtherShop && (
             <p className="text-sm text-danger mt-4">
               Your cart has items from another shop. Clear it to order from here.
@@ -97,7 +120,9 @@ function ShopDetail() {
             <p className="text-muted mt-8">Loading products…</p>
           ) : shown.length === 0 ? (
             <p className="text-muted mt-8">
-              {search ? "No matching products." : "This shop hasn't listed any products yet."}
+              {search || category !== "All"
+                ? "No matching products."
+                : "This shop hasn't listed any products yet."}
             </p>
           ) : (
             <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6 pb-8">

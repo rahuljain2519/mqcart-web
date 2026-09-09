@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import { useCart } from "@/context/CartContext";
 import { watchProduct, watchShopById } from "@/lib/data";
-import { hasOptions, priceFor, priceLabel, stockFor } from "@/lib/product";
+import { hasOptions, priceFor, priceLabel, stockFor, hasDiscount, discountPercent, packSizeLabel } from "@/lib/product";
 import type { Product, Shop } from "@/types";
 
 function ProductDetail() {
@@ -116,9 +116,22 @@ function ProductDetail() {
             </Link>
           )}
           <h1 className="font-display text-3xl mt-1">{product.name}</h1>
-          <p className="text-2xl font-medium mt-3">
-            {canAct ? `₹${price.toFixed(0)}` : priceLabel(product)}
-          </p>
+          {(product.brand || packSizeLabel(product)) && (
+            <p className="text-sm text-muted mt-1">
+              {[product.brand, packSizeLabel(product)].filter(Boolean).join(" · ")}
+            </p>
+          )}
+          {hasDiscount(product) ? (
+            <p className="flex items-baseline gap-2 mt-3">
+              <span className="text-2xl font-medium">₹{price.toFixed(0)}</span>
+              <span className="text-base text-muted line-through">₹{product.mrp!.toFixed(0)}</span>
+              <span className="text-sm text-green font-medium">{discountPercent(product)}% off</span>
+            </p>
+          ) : (
+            <p className="text-2xl font-medium mt-3">
+              {canAct ? `₹${price.toFixed(0)}` : priceLabel(product)}
+            </p>
+          )}
 
           {variant && (
             <div className="mt-4">

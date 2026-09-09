@@ -32,3 +32,19 @@ export function priceFor(p: Product, optionName?: string | null): number {
   }
   return p.price;
 }
+
+export function hasDiscount(p: Product): boolean {
+  return typeof p.mrp === "number" && p.mrp > p.price;
+}
+
+export function discountPercent(p: Product): number {
+  if (!hasDiscount(p)) return 0;
+  return Math.round(((p.mrp! - p.price) / p.mrp!) * 100);
+}
+
+/** e.g. "500 g", or null when no pack size is set. */
+export function packSizeLabel(p: Product): string | null {
+  if (p.unitValue == null || !p.unitType) return null;
+  const formatted = p.unitValue % 1 === 0 ? p.unitValue.toFixed(0) : p.unitValue.toFixed(1);
+  return `${formatted} ${p.unitType}`;
+}

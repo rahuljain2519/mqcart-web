@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
-import { hasOptions, priceLabel, stockFor } from "@/lib/product";
+import { hasOptions, priceLabel, stockFor, hasDiscount, discountPercent, packSizeLabel } from "@/lib/product";
 import type { Product } from "@/types";
 
 export default function ProductCard({
@@ -63,8 +63,21 @@ export default function ProductCard({
         >
           {product.name}
         </Link>
+        {(product.brand || packSizeLabel(product)) && (
+          <p className="text-xs text-muted -mt-0.5">
+            {[product.brand, packSizeLabel(product)].filter(Boolean).join(" · ")}
+          </p>
+        )}
         <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="font-medium">{priceLabel(product)}</span>
+          {hasDiscount(product) ? (
+            <span className="flex items-baseline gap-1.5">
+              <span className="font-medium">₹{product.price.toFixed(0)}</span>
+              <span className="text-xs text-muted line-through">₹{product.mrp!.toFixed(0)}</span>
+              <span className="text-xs text-green font-medium">{discountPercent(product)}% off</span>
+            </span>
+          ) : (
+            <span className="font-medium">{priceLabel(product)}</span>
+          )}
 
           {variant ? (
             <Link

@@ -80,6 +80,12 @@ export interface Product {
   images: string[];
   coverImage: string;
   isActive: boolean;
+  // Optional standard catalog fields (simple/non-variant products only —
+  // variant products keep encoding size in each option's name, e.g. "500g").
+  brand?: string;
+  unitValue?: number; // e.g. 500
+  unitType?: string; // one of UNIT_TYPES, e.g. "g"
+  mrp?: number; // strike-through price, shown only when mrp > price
   // Optional per-product delivery override (mirrors the app).
   deliveryUnit?: DeliveryUnit;
   deliveryMinValue?: number;

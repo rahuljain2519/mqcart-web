@@ -16,6 +16,8 @@ import {
 } from "@/lib/data";
 import { uploadProductImages } from "@/lib/storage";
 import { PRODUCT_CATEGORIES, subcategoriesFor } from "@/lib/categories";
+import { UNIT_TYPES } from "@/lib/units";
+import { OPTION_LABELS } from "@/lib/optionLabels";
 import type { Shop, Product } from "@/types";
 
 const CATEGORIES = PRODUCT_CATEGORIES;
@@ -27,13 +29,18 @@ type FormState = {
   name: string;
   category: string;
   subcategory: string;
+  brand: string;
   price: string;
   quantity: string;
+  unitValue: string;
+  unitType: string;
+  mrp: string;
   description: string;
   existingImages: string[];
   coverIndex: number;
   // Variant options (weight / size / colour). Empty rows => simple product.
   optionLabel: string;
+  customOptionLabel: boolean;
   options: OptRow[];
 };
 
@@ -41,16 +48,19 @@ const EMPTY: FormState = {
   name: "",
   category: "",
   subcategory: "",
+  brand: "",
   price: "",
   quantity: "",
+  unitValue: "",
+  unitType: "",
+  mrp: "",
   description: "",
   existingImages: [],
   coverIndex: 0,
   optionLabel: "",
+  customOptionLabel: false,
   options: [],
 };
-
-const OPTION_LABELS = ["Weight", "Size", "Colour", "Pack", "Variant"];
 
 function ProductsManager() {
   const { profile } = useAuth();
@@ -109,8 +119,12 @@ function ProductsManager() {
         p.subcategory && subcategoriesFor(p.category || "").includes(p.subcategory)
           ? p.subcategory
           : "",
+      brand: p.brand ?? "",
       price: String(p.price),
       quantity: String(p.quantity),
+      unitValue: p.unitValue != null ? String(p.unitValue) : "",
+      unitType: p.unitType ?? "",
+      mrp: p.mrp != null ? String(p.mrp) : "",
       description: p.description,
       existingImages: p.images.length ? p.images : [p.coverImage].filter(Boolean),
       coverIndex: Math.max(
@@ -118,6 +132,7 @@ function ProductsManager() {
         (p.images.length ? p.images : [p.coverImage]).indexOf(p.coverImage)
       ),
       optionLabel: p.optionLabel ?? "",
+      customOptionLabel: !!p.optionLabel && !OPTION_LABELS.includes(p.optionLabel),
       options: (p.options ?? []).map((o) => ({
         name: o.name,
         price: String(o.price),
@@ -164,6 +179,20 @@ function ProductsManager() {
         return setError("Enter a valid quantity.");
     }
 
+    // Brand applies regardless of variants; pack size + MRP only apply to
+    // simple (non-variant) products.
+    const brand = form.brand.trim() || undefined;
+    let unitValue: number | undefined;
+    let unitType: string | undefined;
+    let mrp: number | undefined;
+    if (!useOptions) {
+      const uv = parseFloat(form.unitValue);
+      unitValue = Number.isFinite(uv) ? uv : undefined;
+      unitType = unitValue != null ? form.unitType || undefined : undefined;
+      const m = parseFloat(form.mrp);
+      mrp = Number.isFinite(m) ? m : undefined;
+    }
+
     setSaving(true);
     try {
       const productId = form.id ?? `${Date.now()}`;
@@ -183,6 +212,10 @@ function ProductsManager() {
         quantity,
         category: form.category,
         ...(form.subcategory ? { subcategory: form.subcategory } : {}),
+        ...(brand ? { brand } : {}),
+        ...(unitValue != null ? { unitValue } : {}),
+        ...(unitType ? { unitType } : {}),
+        ...(mrp != null ? { mrp } : {}),
         description: form.description.trim(),
         images,
         coverImage,
@@ -267,6 +300,13 @@ function ProductsManager() {
               className="in"
             />
           </F>
+          <F label="Brand (optional)">
+            <input
+              value={form.brand}
+              onChange={(e) => setForm({ ...form, brand: e.target.value })}
+              className="in"
+            />
+          </F>
           <F label="Category">
             <select
               required
@@ -315,6 +355,16 @@ function ProductsManager() {
                   className="in"
                 />
               </F>
+              <F label="MRP (optional, for a strike-through price)">
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.mrp}
+                  onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                  className="in"
+                />
+              </F>
               <F label="Stock quantity">
                 <input
                   required
@@ -324,6 +374,31 @@ function ProductsManager() {
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                   className="in"
                 />
+              </F>
+              <F label="Pack size (optional)">
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="500"
+                    value={form.unitValue}
+                    onChange={(e) => setForm({ ...form, unitValue: e.target.value })}
+                    className="in"
+                  />
+                  <select
+                    value={form.unitType}
+                    onChange={(e) => setForm({ ...form, unitType: e.target.value })}
+                    className="in"
+                  >
+                    <option value="">Unit</option>
+                    {UNIT_TYPES.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </F>
             </>
           )}
@@ -349,19 +424,35 @@ function ProductsManager() {
             {form.options.length > 0 && (
               <>
                 <F label="Option type">
-                  <input
-                    list="option-labels"
-                    value={form.optionLabel}
-                    onChange={(e) => setForm({ ...form, optionLabel: e.target.value })}
-                    placeholder="Weight"
+                  <select
+                    value={form.customOptionLabel ? "__custom__" : form.optionLabel}
+                    onChange={(e) =>
+                      e.target.value === "__custom__"
+                        ? setForm({ ...form, customOptionLabel: true })
+                        : setForm({ ...form, customOptionLabel: false, optionLabel: e.target.value })
+                    }
                     className="in"
-                  />
-                  <datalist id="option-labels">
+                  >
+                    <option value="" disabled>
+                      Select…
+                    </option>
                     {OPTION_LABELS.map((l) => (
-                      <option key={l} value={l} />
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
                     ))}
-                  </datalist>
+                    <option value="__custom__">Custom…</option>
+                  </select>
                 </F>
+                {form.customOptionLabel && (
+                  <F label="Custom option type">
+                    <input
+                      value={form.optionLabel}
+                      onChange={(e) => setForm({ ...form, optionLabel: e.target.value })}
+                      className="in"
+                    />
+                  </F>
+                )}
 
                 <div className="space-y-2">
                   {form.options.map((o, i) => (
