@@ -17,9 +17,18 @@ type Row = {
   description: string;
   isActive: boolean;
   imagePrefix: string;
+  subcategory?: string;
+  brand?: string;
+  unitValue?: number;
+  unitType?: string;
+  mrp?: number;
 };
 
 const HEADERS = ["name", "price", "quantity", "category", "description", "isActive", "imagePrefix"];
+
+// Optional columns — included only when present in the CSV header, so
+// existing CSVs without them keep working unchanged.
+const OPTIONAL_HEADERS = ["subcategory", "brand", "unitValue", "unitType", "mrp"];
 
 // Small CSV parser: handles quoted fields and embedded commas/quotes.
 function parseCsv(text: string): string[][] {
@@ -86,6 +95,16 @@ function BulkUpload() {
         if (!r[idx("name")]?.trim()) throw new Error(`Row ${i + 1}: name is required.`);
         if (!Number.isFinite(price)) throw new Error(`Row ${i + 1}: bad price.`);
         if (!Number.isFinite(quantity)) throw new Error(`Row ${i + 1}: bad quantity.`);
+
+        const subcategory = idx("subcategory") !== -1 ? r[idx("subcategory")]?.trim() : undefined;
+        const brand = idx("brand") !== -1 ? r[idx("brand")]?.trim() : undefined;
+        const unitValueRaw = idx("unitValue") !== -1 ? parseFloat(r[idx("unitValue")]) : NaN;
+        const unitValue = Number.isFinite(unitValueRaw) ? unitValueRaw : undefined;
+        const unitType =
+          unitValue != null && idx("unitType") !== -1 ? r[idx("unitType")]?.trim() : undefined;
+        const mrpRaw = idx("mrp") !== -1 ? parseFloat(r[idx("mrp")]) : NaN;
+        const mrp = Number.isFinite(mrpRaw) ? mrpRaw : undefined;
+
         return {
           name: r[idx("name")].trim(),
           price,
@@ -94,6 +113,11 @@ function BulkUpload() {
           description: r[idx("description")]?.trim() ?? "",
           isActive: (r[idx("isActive")]?.trim().toLowerCase() ?? "true") !== "false",
           imagePrefix: r[idx("imagePrefix")]?.trim() ?? "",
+          ...(subcategory ? { subcategory } : {}),
+          ...(brand ? { brand } : {}),
+          ...(unitValue != null ? { unitValue } : {}),
+          ...(unitType ? { unitType } : {}),
+          ...(mrp != null ? { mrp } : {}),
         };
       });
       setRows(parsed);
@@ -146,6 +170,11 @@ function BulkUpload() {
           price: r.price,
           quantity: r.quantity,
           category: r.category,
+          ...(r.subcategory ? { subcategory: r.subcategory } : {}),
+          ...(r.brand ? { brand: r.brand } : {}),
+          ...(r.unitValue != null ? { unitValue: r.unitValue } : {}),
+          ...(r.unitType ? { unitType: r.unitType } : {}),
+          ...(r.mrp != null ? { mrp: r.mrp } : {}),
           description: r.description,
           images: urls,
           coverImage: urls[0] ?? "",
@@ -182,7 +211,8 @@ function BulkUpload() {
         CSV columns: <code>{HEADERS.join(", ")}</code>. Each row&rsquo;s{" "}
         <code>imagePrefix</code> matches image files whose name starts with that
         prefix (e.g. prefix <code>milk</code> → <code>milk.jpg</code>,{" "}
-        <code>milk-2.png</code>).
+        <code>milk-2.png</code>). Optional columns:{" "}
+        <code>{OPTIONAL_HEADERS.join(", ")}</code>.
       </p>
 
       <div className="space-y-4">
