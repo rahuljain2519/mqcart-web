@@ -8,18 +8,19 @@ import { useCart } from "@/context/CartContext";
 import { watchShopById, watchProductsByShop } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CartBar from "@/components/CartBar";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { CATEGORIES, CATEGORY_EMOJI, matchesCategory } from "@/lib/categories";
 import type { Shop, Product } from "@/types";
 
 function ShopDetail() {
   const { shopId } = useParams<{ shopId: string }>();
-  const { singleShopId } = useCart();
+  const { singleShopId, addItem, clear } = useCart();
 
   const [shop, setShop] = useState<Shop | null | undefined>(undefined);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("All");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
   const loadingShop = shop === undefined;
 
   useEffect(() => {
@@ -111,10 +112,13 @@ function ShopDetail() {
 
           {blockedByOtherShop && (
             <p className="text-sm text-danger mt-4">
-              Your cart has items from another shop. Clear it to order from here.
+              Your cart has items from another shop.{" "}
+              <button onClick={clear} className="underline underline-offset-2">
+                Clear it
+              </button>{" "}
+              to order from here.
             </p>
           )}
-          {notice && <p className="text-sm text-danger mt-3">{notice}</p>}
 
           {products === null ? (
             <p className="text-muted mt-8">Loading products…</p>
@@ -131,9 +135,7 @@ function ShopDetail() {
                   <ProductCard
                     product={p}
                     deliveryLabel={`${shop.deliveryMinValue}–${shop.deliveryMaxValue} ${shop.deliveryUnit}`}
-                    onMultiShop={() =>
-                      setNotice("You can order from only one shop at a time.")
-                    }
+                    onMultiShop={setPendingProduct}
                   />
                 </li>
               ))}
@@ -141,6 +143,20 @@ function ShopDetail() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingProduct !== null}
+        title="Switch shop?"
+        message="Your cart has items from a different shop. Clear your cart and add this item instead?"
+        confirmLabel="Clear & Add"
+        onCancel={() => setPendingProduct(null)}
+        onConfirm={() => {
+          if (!pendingProduct) return;
+          clear();
+          addItem(pendingProduct, pendingProduct.shopId);
+          setPendingProduct(null);
+        }}
+      />
 
       <CartBar />
     </div>

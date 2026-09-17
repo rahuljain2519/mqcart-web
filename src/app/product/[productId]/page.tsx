@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useCart } from "@/context/CartContext";
 import { watchProduct, watchShopById } from "@/lib/data";
 import { hasOptions, priceFor, priceLabel, stockFor, hasDiscount, discountPercent, packSizeLabel } from "@/lib/product";
@@ -12,7 +13,7 @@ import type { Product, Shop } from "@/types";
 
 function ProductDetail() {
   const { productId } = useParams<{ productId: string }>();
-  const { items, addItem, updateQuantity } = useCart();
+  const { items, addItem, updateQuantity, clear } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
@@ -20,6 +21,7 @@ function ProductDetail() {
   const [active, setActive] = useState(0);
   const [option, setOption] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [multiShopConfirm, setMultiShopConfirm] = useState(false);
 
   useEffect(() => {
     if (!productId) return;
@@ -67,7 +69,7 @@ function ProductDetail() {
       return;
     }
     if (addItem(product, product.shopId, chosen ?? undefined) === "different-shop") {
-      setNotice("You can order from only one shop at a time.");
+      setMultiShopConfirm(true);
     }
   };
 
@@ -203,6 +205,19 @@ function ProductDetail() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={multiShopConfirm}
+        title="Switch shop?"
+        message="Your cart has items from a different shop. Clear your cart and add this item instead?"
+        confirmLabel="Clear & Add"
+        onCancel={() => setMultiShopConfirm(false)}
+        onConfirm={() => {
+          clear();
+          addItem(product, product.shopId, chosen ?? undefined);
+          setMultiShopConfirm(false);
+        }}
+      />
     </div>
   );
 }

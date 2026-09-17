@@ -13,7 +13,7 @@ export default function ProductCard({
 }: {
   product: Product;
   /** Called when the item can't be added because the cart holds another shop. */
-  onMultiShop?: () => void;
+  onMultiShop?: (product: Product) => void;
   /** Optional "2–3 days" style ETA shown on the card (used where the shop is known). */
   deliveryLabel?: string;
 }) {
@@ -28,7 +28,7 @@ export default function ProductCard({
   const maxReached = stock > 0 && qty >= stock;
 
   const add = () => {
-    if (addItem(product, product.shopId) === "different-shop") onMultiShop?.();
+    if (addItem(product, product.shopId) === "different-shop") onMultiShop?.(product);
   };
 
   return (

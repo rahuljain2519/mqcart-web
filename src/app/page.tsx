@@ -10,6 +10,7 @@ import { CATEGORIES, CATEGORY_EMOJI, matchesCategory } from "@/lib/categories";
 import ProductCard from "@/components/ProductCard";
 import CartBar from "@/components/CartBar";
 import AddressBar from "@/components/AddressBar";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { ProductGridSkeleton } from "@/components/Skeleton";
 import { MicIcon, SearchIcon } from "@/components/icons";
 import type { Product, Society } from "@/types";
@@ -69,11 +70,11 @@ const SEARCH_HINTS = [
 ];
 
 function Feed({ societyId }: { societyId: string }) {
-  const { singleShopId } = useCart();
+  const { singleShopId, addItem, clear } = useCart();
   const [products, setProducts] = useState<Product[] | null>(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("All");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
   const [hint, setHint] = useState(0);
   const recognitionRef = useRef<{ start: () => void } | null>(null);
   const [micAvailable, setMicAvailable] = useState(false);
@@ -170,7 +171,6 @@ function Feed({ societyId }: { societyId: string }) {
       </div>
 
       <div className="mx-auto w-full max-w-6xl px-5 pt-4 flex-1">
-        {notice && <p className="text-sm text-danger mb-3">{notice}</p>}
         {singleShopId && (
           <p className="text-xs text-muted mb-3">
             Your cart has items from one shop — clear it to order from another.
@@ -193,17 +193,26 @@ function Feed({ societyId }: { societyId: string }) {
           <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pb-8">
             {shown.map((p) => (
               <li key={p.id}>
-                <ProductCard
-                  product={p}
-                  onMultiShop={() =>
-                    setNotice("You can order from only one shop at a time.")
-                  }
-                />
+                <ProductCard product={p} onMultiShop={setPendingProduct} />
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingProduct !== null}
+        title="Switch shop?"
+        message="Your cart has items from a different shop. Clear your cart and add this item instead?"
+        confirmLabel="Clear & Add"
+        onCancel={() => setPendingProduct(null)}
+        onConfirm={() => {
+          if (!pendingProduct) return;
+          clear();
+          addItem(pendingProduct, pendingProduct.shopId);
+          setPendingProduct(null);
+        }}
+      />
 
       <CartBar />
     </div>
