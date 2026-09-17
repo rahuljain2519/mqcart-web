@@ -71,11 +71,14 @@ function OrderCard({ order }: { order: Order }) {
 
       {(order.status === "placed" || order.status === "accepted") &&
         order.shopPhone && (
+          // Desktop browsers usually can't place a tel: call — show the
+          // number itself (still a tel: link for the browsers/devices
+          // that can act on it, e.g. mobile web).
           <a
             href={`tel:${order.shopPhone}`}
-            className="inline-block mt-3 text-sm rounded-full bg-accent text-white px-4 py-1.5"
+            className="inline-flex items-center gap-1.5 mt-3 text-sm rounded-full bg-accent text-white px-4 py-1.5"
           >
-            Call store
+            Call store: {order.shopPhone}
           </a>
         )}
 

@@ -135,11 +135,13 @@ function SellerOrders() {
                           <div className="flex items-center gap-2">
                             {buyer?.phone &&
                               (o.status === "placed" || o.status === "accepted") && (
+                                // Desktop browsers usually can't place a tel:
+                                // call — show the number itself.
                                 <a
                                   href={`tel:${buyer.phone}`}
                                   className="text-sm rounded-full border border-line px-4 py-1.5 hover:border-ink/40"
                                 >
-                                  Call buyer
+                                  Call buyer: {buyer.phone}
                                 </a>
                               )}
                             {o.status === "placed" && (

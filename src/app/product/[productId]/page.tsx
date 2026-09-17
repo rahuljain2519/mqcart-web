@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { watchProduct, watchShopById } from "@/lib/data";
 import { hasOptions, priceFor, priceLabel, stockFor, hasDiscount, discountPercent, packSizeLabel } from "@/lib/product";
@@ -13,6 +14,7 @@ import type { Product, Shop } from "@/types";
 
 function ProductDetail() {
   const { productId } = useParams<{ productId: string }>();
+  const { profile } = useAuth();
   const { items, addItem, updateQuantity, clear } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -44,6 +46,10 @@ function ProductDetail() {
   if (!product) {
     return <p className="mx-auto max-w-4xl px-5 py-16 text-muted">Product not found.</p>;
   }
+
+  // A seller can't buy their own product — same as the app, where the
+  // Shops list already hides the seller's own shop entirely.
+  const isOwnProduct = profile?.uid === product.sellerId;
 
   const variant = hasOptions(product);
   const gallery = product.images.length
@@ -175,7 +181,9 @@ function ProductDetail() {
           {notice && <p className="text-sm text-danger mt-4">{notice}</p>}
 
           <div className="mt-6">
-            {outOfStock ? (
+            {isOwnProduct ? (
+              <p className="text-muted font-medium">This is your own product.</p>
+            ) : outOfStock ? (
               <p className="text-danger font-medium">Sold out</p>
             ) : qty === 0 ? (
               <button

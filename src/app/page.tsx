@@ -59,6 +59,7 @@ export default function HomePage() {
     return (
       <Feed
         societyId={profile.societyId}
+        viewerUid={profile.uid}
         showSellCta={profile.role === "buyer" && profile.sellerStatus === "none"}
       />
     );
@@ -80,9 +81,11 @@ const SEARCH_HINTS = [
 
 function Feed({
   societyId,
+  viewerUid,
   showSellCta,
 }: {
   societyId: string;
+  viewerUid: string;
   showSellCta: boolean;
 }) {
   const { singleShopId, addItem, clear } = useCart();
@@ -134,10 +137,13 @@ function Feed({
     const q = search.toLowerCase().trim();
     return products.filter(
       (p) =>
+        // A seller browsing doesn't see their own shop's products, same as
+        // the app hides the seller's own shop from their Shops list.
+        p.sellerId !== viewerUid &&
         (q === "" || p.name.toLowerCase().includes(q)) &&
         matchesCategory(p.category, category)
     );
-  }, [products, search, category]);
+  }, [products, search, category, viewerUid]);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">

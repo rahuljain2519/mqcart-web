@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
+import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { watchShopById, watchProductsByShop } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
@@ -14,6 +16,7 @@ import type { Shop, Product } from "@/types";
 
 function ShopDetail() {
   const { shopId } = useParams<{ shopId: string }>();
+  const { profile } = useAuth();
   const { singleShopId, addItem, clear } = useCart();
 
   const [shop, setShop] = useState<Shop | null | undefined>(undefined);
@@ -48,6 +51,20 @@ function ShopDetail() {
   }
   if (!shop) {
     return <p className="mx-auto max-w-6xl px-5 py-12 text-muted">Shop not found.</p>;
+  }
+
+  // A seller can't buy from their own shop — same as the app, where the
+  // Shops list already hides it entirely.
+  if (profile?.uid === shop.sellerId) {
+    return (
+      <div className="mx-auto max-w-xl px-5 py-16 text-center">
+        <h1 className="font-display text-2xl mb-2">This is your shop</h1>
+        <p className="text-muted mb-6">You can&rsquo;t buy from your own shop.</p>
+        <Link href="/seller" className="rounded-full bg-accent text-white px-6 py-3 font-medium">
+          Go to your seller dashboard
+        </Link>
+      </div>
+    );
   }
 
   const blockedByOtherShop = singleShopId && singleShopId !== shopId;
