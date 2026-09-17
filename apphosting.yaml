@@ -7,10 +7,19 @@ runConfig:
   maxInstances: 2
 
 # The Firebase web config is already baked into src/lib/firebase.ts as
-# non-secret fallbacks, so no env vars are required here. To override per
-# backend, add entries like:
+# non-secret fallbacks, so no env vars are required here beyond the ones
+# below. To override more per backend, add entries like:
 #
 # env:
 #   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
 #     value: mqcart-prod
 #     availability: [BUILD, RUNTIME]
+
+env:
+  # Web Push certificate (VAPID key) — public by design, safe to commit.
+  # Without this, registerSellerPush() (src/lib/push.ts) is a no-op and no
+  # seller ever gets a push token registered on web. Generated at Firebase
+  # Console -> Project settings -> Cloud Messaging -> Web Push certificates.
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    value: BNrxIPx3YRPfKYdeDPiTcuwvFuxyo2bg-DPr4l6ekAMKhUzjuLe1WJ4QiqUe4EEfbIpRPJfYpNJsiK2hfdrV6Fc
+    availability: [BUILD, RUNTIME]
