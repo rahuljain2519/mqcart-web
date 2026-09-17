@@ -42,7 +42,7 @@ function CheckoutView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [waiting]);
 
-  if (items.length === 0) {
+  if (items.length === 0 && !waiting) {
     return (
       <div className="mx-auto max-w-xl px-5 py-16 text-center text-muted">
         Your cart is empty.
@@ -200,7 +200,9 @@ function CheckoutView() {
 
       {error && <p className="text-sm text-danger mb-4">{error}</p>}
       {waiting && (
-        <p className="text-sm text-green mb-4">Payment received — placing your order…</p>
+        <p className="text-sm text-green mb-4">
+          Complete the payment in the popup — we&apos;ll place your order once it&apos;s confirmed…
+        </p>
       )}
 
       <button
