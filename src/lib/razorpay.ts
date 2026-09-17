@@ -42,6 +42,7 @@ export function loadRazorpay(): Promise<void> {
 export interface RazorpayCheckoutOptions {
   orderId: string;
   amountLabel?: string;
+  description?: string;
   contact?: string;
   email?: string;
   notes?: Record<string, string>;
@@ -59,7 +60,7 @@ export async function openRazorpayCheckout(opts: RazorpayCheckoutOptions) {
     key: RAZORPAY.keyId,
     order_id: opts.orderId,
     name: RAZORPAY.companyName,
-    description: RAZORPAY.description,
+    description: opts.description ?? RAZORPAY.description,
     currency: RAZORPAY.currency,
     prefill: { contact: opts.contact ?? "", email: opts.email ?? "" },
     notes: opts.notes ?? {},

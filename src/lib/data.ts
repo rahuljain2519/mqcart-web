@@ -546,6 +546,77 @@ export async function createOrder(order: {
   });
 }
 
+/** Pre-generate an order id client-side, before any order doc exists. */
+export function newOrderId(): string {
+  return doc(collection(db, "orders")).id;
+}
+
+/* --------------------------- Buyer online payment --------------------------- */
+// Mirrors createActivationPayment/createSellerRazorpayOrder above. See
+// razorpayWebhook's buyer_order_payments branch (functions/index.js) for
+// how a captured payment turns into the real orders/{orderId} doc.
+
+export async function createBuyerOrderPayment(input: {
+  buyerId: string;
+  sellerId: string;
+  shopId: string;
+  societyId: string;
+  flatNumber: string;
+  societyName: string;
+  shopName: string;
+  shopPhone: string;
+  items: OrderItem[];
+  totalAmount: number;
+  /** Pre-generated so the webhook can write to a known doc and the client
+   *  can watch for it to appear. */
+  orderId: string;
+}): Promise<string> {
+  const r = doc(collection(db, "buyer_order_payments"));
+  await setDoc(r, {
+    ...input,
+    gateway: "razorpay",
+    status: "initiated",
+    createdAt: serverTimestamp(),
+  });
+  return r.id;
+}
+
+export async function markBuyerOrderPaymentFailed(paymentDocId: string, reason: string) {
+  return updateDoc(doc(db, "buyer_order_payments", paymentDocId), {
+    status: "failed",
+    failureReason: reason,
+    failedAt: serverTimestamp(),
+  });
+}
+
+export async function createBuyerRazorpayOrder(paymentDocId: string): Promise<string> {
+  const fn = httpsCallable<{ paymentDocId: string }, { orderId: string }>(
+    functions,
+    "createBuyerOrderPayment"
+  );
+  const res = await fn({ paymentDocId });
+  return res.data.orderId;
+}
+
+/** Single-order listener (none existed before — only the buyer/seller list
+ *  queries above). Used to detect the webhook creating orders/{orderId}
+ *  once an online payment is captured. */
+export function watchOrder(orderId: string, cb: (order: Order | null) => void) {
+  return onSnapshot(doc(db, "orders", orderId), (snap) => {
+    if (!snap.exists()) {
+      cb(null);
+      return;
+    }
+    const d = snap.data();
+    cb({
+      id: snap.id,
+      ...d,
+      createdAt: toDate(d.createdAt),
+      updatedAt: toDate(d.updatedAt),
+    } as Order);
+  });
+}
+
 type StockItem = { productId: string; quantity: number; optionName?: string };
 
 type OptRow = { name: string; price: number; quantity: number };
