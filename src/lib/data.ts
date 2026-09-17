@@ -927,6 +927,26 @@ export async function adminUpdateUser(
   return updateDoc(doc(db, "users", uid), { ...patch, updatedAt: serverTimestamp() });
 }
 
+/** Keep a seller's shop + products in the society they're actually in.
+ *  Call whenever a seller's own societyId changes (admin edit, or a
+ *  self-service profile edit) - otherwise their shop/products stay tied
+ *  to their old society and never show up for buyers in the new one.
+ *  No-op if they have no shop yet, or it's already correct. */
+export async function syncShopSocietyToSeller(sellerId: string, societyId: string) {
+  const shop = await getShopBySeller(sellerId);
+  if (!shop || shop.societyId === societyId) return;
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, "shops", shop.shopId), { societyId });
+
+  const products = await getDocs(
+    query(collection(db, "products"), where("shopId", "==", shop.shopId))
+  );
+  products.docs.forEach((d) => batch.update(d.ref, { societyId }));
+
+  await batch.commit();
+}
+
 /** Toggle a shop active/inactive and cascade to all its products (admin). */
 export async function toggleShopActive(shopId: string, makeActive: boolean) {
   const batch = writeBatch(db);

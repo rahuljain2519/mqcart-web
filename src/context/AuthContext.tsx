@@ -17,7 +17,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { getUser } from "@/lib/data";
+import { getUser, syncShopSocietyToSeller } from "@/lib/data";
 import type { AppUser } from "@/types";
 
 /**
@@ -167,6 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       flatNumber: input.flatNumber.trim(),
       updatedAt: serverTimestamp(),
     });
+    if (profile?.role === "seller") {
+      await syncShopSocietyToSeller(u.uid, input.societyId);
+    }
     await loadProfile(u.uid);
   };
 

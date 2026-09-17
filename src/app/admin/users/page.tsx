@@ -10,6 +10,7 @@ import {
   toggleShopActive,
   adminUpdateUser,
   adminDeleteSeller,
+  syncShopSocietyToSeller,
 } from "@/lib/data";
 import type { AppUser, Shop, Society } from "@/types";
 
@@ -48,6 +49,9 @@ function SellerRow({
     setBusy(true);
     try {
       await adminUpdateUser(user.uid, { role, societyId });
+      if (role === "seller") {
+        await syncShopSocietyToSeller(user.uid, societyId);
+      }
       onChanged();
     } finally {
       setBusy(false);
