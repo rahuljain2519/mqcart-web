@@ -219,8 +219,15 @@ service cloud.firestore {
 
       // get + list: only the buyer, the seller, or an admin.
       // Queries must be constrained by buyerId/sellerId to satisfy list.
+      // `resource == null` (doc not created yet) is allowed too — both
+      // clients open a snapshot listener on orders/{orderId} right after
+      // starting an online payment, before the razorpayWebhook creates the
+      // doc. Without this, resource.data.buyerId on a null resource denies
+      // the read outright and the listener dies before the doc ever
+      // appears, leaving checkout stuck on "Payment received" forever.
       allow read: if isSignedIn() && (
-        resource.data.buyerId == request.auth.uid
+        resource == null
+        || resource.data.buyerId == request.auth.uid
         || resource.data.sellerId == request.auth.uid
         || isAdmin()
       );
