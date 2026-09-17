@@ -27,7 +27,7 @@ export default function NavBar() {
           { href: "/seller/products", label: "Products" },
           { href: "/seller/orders", label: "Orders" },
           // Sellers can also buy from other shops in their society.
-          { href: "/", label: "Browse" },
+          { href: "/shops", label: "Shops" },
           { href: "/orders", label: "My purchases" },
         ]
       : [
