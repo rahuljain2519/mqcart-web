@@ -275,6 +275,44 @@ service cloud.firestore {
     }
 
     /* =========================================================
+       💳 BUYER ORDER PAYMENTS (CLIENT → CF VERIFIED)
+       Mirrors seller_activation_payments above, keyed by buyerId instead
+       of sellerId. The webhook (Admin SDK) writes to this collection and
+       to orders/products directly and is not bound by these rules.
+       ========================================================= */
+
+    match /buyer_order_payments/{paymentId} {
+
+      // Buyer creates their own payment document
+      allow create: if isSignedIn()
+        && request.resource.data.buyerId == request.auth.uid;
+
+      // Buyer can read their own payments
+      allow read: if isSignedIn()
+        && resource.data.buyerId == request.auth.uid;
+
+      // Buyer can update ONLY frontend payment outcome fields
+      allow update: if isSignedIn()
+        && resource.data.buyerId == request.auth.uid
+        && request.resource.data.diff(resource.data)
+             .affectedKeys()
+             .hasOnly([
+               // success path
+               'status',
+               'razorpayPaymentId',
+               'razorpayOrderId',
+               'orderCreatedAt',
+               'capturedAt',
+               // failure path
+               'failureReason',
+               'failedAt'
+             ]);
+
+      // No deletes from client
+      allow delete: if false;
+    }
+
+    /* =========================================================
        📊 ANALYTICS (ADMIN READ-ONLY)
        ========================================================= */
 
