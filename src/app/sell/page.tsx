@@ -105,6 +105,12 @@ export default function SellPage() {
         }
       }
 
+      const gstin = form.gstin.trim();
+      const registrationNumber = personal ? "" : form.registrationNumber.trim();
+      const bankAccountNumber = form.bankAccountNumber.trim();
+      const ifscCode = form.ifscCode.trim().toUpperCase();
+      const bankName = form.bankName.trim();
+
       await submitSellerApplication({
         uid: profile.uid,
         shopName: form.shopName.trim(),
@@ -113,17 +119,18 @@ export default function SellPage() {
         businessType: form.businessType,
         panNumber: form.panNumber.trim().toUpperCase(),
         aadhaarLast4: personal ? form.aadhaar.slice(-4) : "",
-        gstin: form.gstin.trim() || undefined,
-        registrationNumber: personal
-          ? undefined
-          : form.registrationNumber.trim() || undefined,
         addressLine: form.addressLine.trim(),
         city: form.city.trim(),
         state: form.state.trim(),
         pincode: form.pincode.trim(),
-        bankAccountNumber: form.bankAccountNumber.trim() || undefined,
-        ifscCode: form.ifscCode.trim().toUpperCase() || undefined,
-        bankName: form.bankName.trim() || undefined,
+        // Firestore's setDoc() rejects `undefined` field values outright
+        // (unlike mobile's Firestore plugin, which allows null) — omit
+        // these keys entirely when empty instead of setting them.
+        ...(gstin ? { gstin } : {}),
+        ...(registrationNumber ? { registrationNumber } : {}),
+        ...(bankAccountNumber ? { bankAccountNumber } : {}),
+        ...(ifscCode ? { ifscCode } : {}),
+        ...(bankName ? { bankName } : {}),
       });
 
       // KYC documents (optional) — same Storage path + subcollection as the app.
