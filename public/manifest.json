@@ -1,6 +1,6 @@
 {
-  "name": "mqcart — your society's shops, online",
-  "short_name": "mqcart",
+  "name": "MQ Cart — your society's shops, online",
+  "short_name": "MQ Cart",
   "description": "Order from the shops inside your own residential society.",
   "start_url": "/",
   "scope": "/",

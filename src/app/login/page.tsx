@@ -107,7 +107,7 @@ export default function LoginPage() {
   return (
     <div className="mx-auto max-w-md px-5 py-16">
       <h1 className="font-display text-3xl mb-1">
-        {step === "profile" ? "A few more details" : "Sign in to mqcart"}
+        {step === "profile" ? "A few more details" : "Sign in to MQ Cart"}
       </h1>
       <p className="text-muted text-sm mb-8">
         {step === "phone" &&

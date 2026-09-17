@@ -267,7 +267,7 @@ function GuestLanding() {
           The shops downstairs, now a tap away.
         </h1>
         <p className="mt-5 text-lg text-ink/70 max-w-md">
-          mqcart connects you to the sellers already inside your residential
+          MQ Cart connects you to the sellers already inside your residential
           society — groceries, essentials and more, delivered from your own
           building.
         </p>
@@ -289,7 +289,7 @@ function GuestLanding() {
 
       <div className="border border-line rounded-2xl bg-surface overflow-hidden">
         <div className="px-5 py-3 border-b border-line flex items-center justify-between">
-          <span className="text-sm font-medium">Societies on mqcart</span>
+          <span className="text-sm font-medium">Societies on MQ Cart</span>
           <span className="text-xs text-muted">{societies.length} listed</span>
         </div>
         <ul>

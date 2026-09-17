@@ -18,11 +18,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "mqcart — your society's shops, online",
+  title: "MQ Cart — your society's shops, online",
   description:
     "Order from the shops inside your own residential society. Browse, pay, and track delivery — all in one place.",
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "mqcart" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "MQ Cart" },
 };
 
 export const viewport: Viewport = {

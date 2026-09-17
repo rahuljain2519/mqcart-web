@@ -41,7 +41,7 @@ export default function NavBar() {
     <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
       <div className="mx-auto max-w-6xl px-5 flex items-center justify-between h-16">
         <Link href="/" className="font-display text-2xl tracking-tight text-ink">
-          mqcart
+          MQ Cart
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm">
