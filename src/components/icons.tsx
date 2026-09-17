@@ -65,6 +65,14 @@ export const SellIcon = ({ className }: P) => (
   </svg>
 );
 
+export const CartIcon = ({ className }: P) => (
+  <svg className={className ?? base} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.2a2 2 0 0 0 2-1.6L20 8H6" />
+    <circle cx="9" cy="20" r="1.4" />
+    <circle cx="17" cy="20" r="1.4" />
+  </svg>
+);
+
 export const SearchIcon = ({ className }: P) => (
   <svg className={className ?? "w-5 h-5"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="7" />

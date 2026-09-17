@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { CartIcon } from "./icons";
 
 export default function NavBar() {
   const { profile, firebaseUser, signOut } = useAuth();
@@ -64,12 +65,12 @@ export default function NavBar() {
           {profile?.role !== "admin" && (
             <Link
               href="/cart"
-              className="relative text-sm text-ink/80 hover:text-ink"
+              className="relative text-ink/80 hover:text-ink"
               aria-label="Cart"
             >
-              Cart
+              <CartIcon className="w-6 h-6" />
               {itemCount > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-accent text-white text-xs w-5 h-5">
+                <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center rounded-full bg-accent text-white text-xs w-[18px] h-[18px] px-0.5">
                   {itemCount}
                 </span>
               )}
