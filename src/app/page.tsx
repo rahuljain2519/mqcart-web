@@ -20,7 +20,6 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (profile?.role === "seller") router.replace("/seller");
     if (profile?.role === "admin") router.replace("/admin");
   }, [profile, router]);
 
@@ -34,7 +33,11 @@ export default function HomePage() {
 
   if (!firebaseUser) return <GuestLanding />;
 
-  if (profile && profile.role === "buyer" && !profile.societyId) {
+  if (
+    profile &&
+    (profile.role === "buyer" || profile.role === "seller") &&
+    !profile.societyId
+  ) {
     return (
       <div className="mx-auto max-w-md px-5 py-24 text-center">
         <div className="text-5xl mb-3">📍</div>
@@ -52,7 +55,8 @@ export default function HomePage() {
     );
   }
 
-  if (profile?.role === "buyer") return <Feed societyId={profile.societyId} />;
+  if (profile?.role === "buyer" || profile?.role === "seller")
+    return <Feed societyId={profile.societyId} />;
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10">

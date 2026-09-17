@@ -26,11 +26,15 @@ export default function NavBar() {
           { href: "/seller", label: "Dashboard" },
           { href: "/seller/products", label: "Products" },
           { href: "/seller/orders", label: "Orders" },
+          // Sellers can also buy from other shops in their society.
+          { href: "/", label: "Browse" },
+          { href: "/orders", label: "My purchases" },
         ]
       : [
           { href: "/", label: "Home" },
           { href: "/shops", label: "Shops" },
           { href: "/orders", label: "My orders" },
+          { href: "/sell", label: "Sell" },
         ];
 
   return (
@@ -57,7 +61,7 @@ export default function NavBar() {
         </nav>
 
         <div className="flex items-center gap-4">
-          {profile?.role !== "seller" && profile?.role !== "admin" && (
+          {profile?.role !== "admin" && (
             <Link
               href="/cart"
               className="relative text-sm text-ink/80 hover:text-ink"

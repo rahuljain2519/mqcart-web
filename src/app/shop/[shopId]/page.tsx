@@ -165,7 +165,7 @@ function ShopDetail() {
 
 export default function ShopPage() {
   return (
-    <RoleGuard allow={["buyer"]}>
+    <RoleGuard allow={["buyer", "seller"]}>
       <ShopDetail />
     </RoleGuard>
   );

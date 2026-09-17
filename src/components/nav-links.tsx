@@ -31,6 +31,8 @@ export function navLinksFor(role: UserRole | undefined): NavLink[] {
       { href: "/seller", label: "Dashboard", icon: HomeIcon },
       { href: "/seller/products", label: "Products", icon: BoxIcon },
       { href: "/seller/orders", label: "Orders", icon: ReceiptIcon },
+      // Sellers can also buy from other shops in their society.
+      { href: "/shops", label: "Browse", icon: StoreIcon },
       { href: "/profile", label: "Profile", icon: UserIcon },
     ];
   }

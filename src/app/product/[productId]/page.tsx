@@ -224,7 +224,7 @@ function ProductDetail() {
 
 export default function ProductPage() {
   return (
-    <RoleGuard allow={["buyer"]}>
+    <RoleGuard allow={["buyer", "seller"]}>
       <ProductDetail />
     </RoleGuard>
   );

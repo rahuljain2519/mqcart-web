@@ -124,7 +124,7 @@ function CheckoutView() {
 
 export default function CheckoutPage() {
   return (
-    <RoleGuard allow={["buyer"]}>
+    <RoleGuard allow={["buyer", "seller"]}>
       <CheckoutView />
     </RoleGuard>
   );

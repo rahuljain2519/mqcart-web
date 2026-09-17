@@ -119,7 +119,7 @@ function ShopsList() {
 
 export default function ShopsPage() {
   return (
-    <RoleGuard allow={["buyer"]}>
+    <RoleGuard allow={["buyer", "seller"]}>
       <ShopsList />
     </RoleGuard>
   );

@@ -120,7 +120,7 @@ function CartView() {
 
 export default function CartPage() {
   return (
-    <RoleGuard allow={["buyer"]}>
+    <RoleGuard allow={["buyer", "seller"]}>
       <CartView />
     </RoleGuard>
   );

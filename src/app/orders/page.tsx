@@ -174,7 +174,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function OrdersPage() {
   return (
-    <RoleGuard allow={["buyer"]}>
+    <RoleGuard allow={["buyer", "seller"]}>
       <OrdersView />
     </RoleGuard>
   );
