@@ -136,6 +136,11 @@ function BulkUpload() {
     if (!shop || !profile) return;
     setError(null);
 
+    if (!shop.isActive) {
+      setError("Activate your shop to add products.");
+      return;
+    }
+
     if (shop.productCount + rows.length > shop.productLimit) {
       setError(
         `This would exceed your plan limit (${shop.productLimit}). You have room for ${

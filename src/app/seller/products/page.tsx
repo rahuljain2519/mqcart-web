@@ -42,6 +42,7 @@ type FormState = {
   optionLabel: string;
   customOptionLabel: boolean;
   options: OptRow[];
+  isActive: boolean;
 };
 
 const EMPTY: FormState = {
@@ -60,6 +61,7 @@ const EMPTY: FormState = {
   optionLabel: "",
   customOptionLabel: false,
   options: [],
+  isActive: true,
 };
 
 function ProductsManager() {
@@ -98,6 +100,10 @@ function ProductsManager() {
   const openAdd = async () => {
     setError(null);
     if (!shop) return;
+    if (!shop.isActive) {
+      setError("Activate your shop to add products.");
+      return;
+    }
     try {
       await validateProductLimit(shop.shopId);
       setForm({ ...EMPTY });
@@ -138,6 +144,7 @@ function ProductsManager() {
         price: String(o.price),
         quantity: String(o.quantity),
       })),
+      isActive: p.isActive,
     });
     setFiles([]);
   };
@@ -219,7 +226,10 @@ function ProductsManager() {
         description: form.description.trim(),
         images,
         coverImage,
-        isActive: true,
+        // New products start visible; editing preserves whatever the
+        // product's current visibility already was (editing must not
+        // silently re-activate a product the seller or an admin hid).
+        isActive: form.id ? form.isActive : true,
         optionLabel: useOptions ? form.optionLabel.trim() || "Option" : "",
         options,
       };
@@ -240,6 +250,10 @@ function ProductsManager() {
 
   const toggleActive = async (p: Product) => {
     setError(null);
+    if (!p.isActive && shop && !shop.isActive) {
+      setError("Activate your shop to re-activate products.");
+      return;
+    }
     if (!p.isActive && shop && activeCount >= shop.productLimit) {
       setError(`Product limit reached (${shop.productLimit}). Upgrade your plan.`);
       return;

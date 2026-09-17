@@ -949,3 +949,15 @@ export async function getSellerApplication(
   if (!snap.exists()) return null;
   return { ...(snap.data() as SellerApplication), createdAt: toDate(snap.data().createdAt) };
 }
+
+/** Admin-only, irreversible: wipes every seller-specific doc/file for this
+ *  user (shop, products, applications, subscriptions, payment records, KYC
+ *  docs) and resets them back to a plain buyer. See adminDeleteSeller in
+ *  functions/index.js for exactly what's removed. */
+export async function adminDeleteSeller(uid: string): Promise<void> {
+  const fn = httpsCallable<{ uid: string }, { success: boolean }>(
+    functions,
+    "adminDeleteSeller"
+  );
+  await fn({ uid });
+}

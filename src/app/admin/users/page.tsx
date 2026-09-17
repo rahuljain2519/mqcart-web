@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import RoleGuard from "@/components/RoleGuard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   listUsersByRole,
   listAllSocieties,
   getShopBySeller,
   toggleShopActive,
   adminUpdateUser,
+  adminDeleteSeller,
 } from "@/lib/data";
 import type { AppUser, Shop, Society } from "@/types";
 
@@ -25,6 +27,7 @@ function SellerRow({
   const [role, setRole] = useState(user.role);
   const [societyId, setSocietyId] = useState(user.societyId);
   const [busy, setBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (open && shop === undefined) getShopBySeller(user.uid).then(setShop);
@@ -45,6 +48,17 @@ function SellerRow({
     setBusy(true);
     try {
       await adminUpdateUser(user.uid, { role, societyId });
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteSeller = async () => {
+    setConfirmingDelete(false);
+    setBusy(true);
+    try {
+      await adminDeleteSeller(user.uid);
       onChanged();
     } finally {
       setBusy(false);
@@ -126,8 +140,27 @@ function SellerRow({
               </div>
             )}
           </div>
+
+          <div className="border-t border-line pt-4">
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy}
+              className="rounded-full border border-danger/40 text-danger px-4 py-1.5 hover:bg-danger/5 disabled:opacity-60"
+            >
+              Delete seller
+            </button>
+          </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete this seller?"
+        message="This permanently removes their shop, every product, seller application, subscription, payment records, and uploaded documents (KYC, shop images, product photos). They go back to being a plain buyer with the same account - this cannot be undone."
+        confirmLabel="Delete permanently"
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={deleteSeller}
+      />
     </li>
   );
 }
