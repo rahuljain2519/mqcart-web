@@ -58,6 +58,13 @@ export const ChevronDownIcon = ({ className }: P) => (
   </svg>
 );
 
+export const SellIcon = ({ className }: P) => (
+  <svg className={className ?? base} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3h7a2 2 0 0 1 2 2v7l-9.5 9.5a2 2 0 0 1-2.8 0L3 16.3a2 2 0 0 1 0-2.8L12 4Z" />
+    <circle cx="16.5" cy="7.5" r="1.4" />
+  </svg>
+);
+
 export const SearchIcon = ({ className }: P) => (
   <svg className={className ?? "w-5 h-5"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="7" />

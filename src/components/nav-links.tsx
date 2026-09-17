@@ -7,6 +7,7 @@ import {
   UserIcon,
   BoxIcon,
   ChartIcon,
+  SellIcon,
 } from "./icons";
 
 export interface NavLink {
@@ -41,6 +42,7 @@ export function navLinksFor(role: UserRole | undefined): NavLink[] {
     { href: "/", label: "Home", icon: HomeIcon },
     { href: "/shops", label: "Shops", icon: StoreIcon },
     { href: "/orders", label: "Orders", icon: ReceiptIcon },
+    { href: "/sell", label: "Sell", icon: SellIcon },
     { href: "/profile", label: "Profile", icon: UserIcon },
   ];
 }
