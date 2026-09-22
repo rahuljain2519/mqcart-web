@@ -227,7 +227,7 @@ function BulkUpload() {
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => e.target.files?.[0] && onCsv(e.target.files[0])}
-            className="text-sm"
+            className="text-sm text-ink file:mr-3 file:rounded-full file:border-0 file:bg-ink file:text-bg file:px-4 file:py-2 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-ink/85"
           />
         </label>
         <label className="block">
@@ -237,7 +237,7 @@ function BulkUpload() {
             accept="image/*"
             multiple
             onChange={(e) => setImages(Array.from(e.target.files ?? []))}
-            className="text-sm"
+            className="text-sm text-ink file:mr-3 file:rounded-full file:border-0 file:bg-ink file:text-bg file:px-4 file:py-2 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-ink/85"
           />
         </label>
       </div>

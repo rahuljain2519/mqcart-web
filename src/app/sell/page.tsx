@@ -283,7 +283,7 @@ function Text({
         onChange={onChange}
         required={required}
         maxLength={maxLength}
-        className="w-full border border-line rounded-xl px-3 py-2 bg-surface"
+        className="w-full border border-line rounded-xl px-3 py-2 bg-surface text-ink"
       />
     </label>
   );
@@ -303,7 +303,7 @@ function DocInput({
         type="file"
         accept="image/*,application/pdf"
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-        className="text-sm max-w-[60%]"
+        className="text-sm text-ink max-w-[60%] file:mr-3 file:rounded-full file:border-0 file:bg-ink file:text-bg file:px-4 file:py-2 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-ink/85"
       />
     </label>
   );
@@ -329,7 +329,7 @@ function Select({
         value={value}
         onChange={onChange}
         required={required}
-        className="w-full border border-line rounded-xl px-3 py-2 bg-surface"
+        className="w-full border border-line rounded-xl px-3 py-2 bg-surface text-ink"
       >
         <option value="" disabled>
           Select…

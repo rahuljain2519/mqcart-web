@@ -149,6 +149,51 @@ function ProductsManager() {
     setFiles([]);
   };
 
+  // Duplicate an existing product as a starting point for a new one — same
+  // fields, but no id (so save() creates a fresh doc) and no images (Storage
+  // files live under products/{shopId}/{productId}/, keyed to the ORIGINAL
+  // product's id; reusing those URLs would break if the original is later
+  // deleted, so the copy starts with a clean image slate instead).
+  const openCopy = async (p: Product) => {
+    setError(null);
+    if (!shop) return;
+    if (!shop.isActive) {
+      setError("Activate your shop to add products.");
+      return;
+    }
+    try {
+      await validateProductLimit(shop.shopId);
+      setForm({
+        name: p.name,
+        category: p.category || "",
+        subcategory:
+          p.subcategory && subcategoriesFor(p.category || "").includes(p.subcategory)
+            ? p.subcategory
+            : "",
+        brand: p.brand ?? "",
+        price: String(p.price),
+        quantity: String(p.quantity),
+        unitValue: p.unitValue != null ? String(p.unitValue) : "",
+        unitType: p.unitType ?? "",
+        mrp: p.mrp != null ? String(p.mrp) : "",
+        description: p.description,
+        existingImages: [],
+        coverIndex: 0,
+        optionLabel: p.optionLabel ?? "",
+        customOptionLabel: !!p.optionLabel && !OPTION_LABELS.includes(p.optionLabel),
+        options: (p.options ?? []).map((o) => ({
+          name: o.name,
+          price: String(o.price),
+          quantity: String(o.quantity),
+        })),
+        isActive: true,
+      });
+      setFiles([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cannot add more products.");
+    }
+  };
+
   const setOpts = (options: OptRow[]) =>
     setForm((f) => (f ? { ...f, options } : f));
 
@@ -539,7 +584,7 @@ function ProductsManager() {
                 accept="image/*"
                 multiple
                 onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))}
-                className="text-sm"
+                className="text-sm text-ink file:mr-3 file:rounded-full file:border-0 file:bg-ink file:text-bg file:px-4 file:py-2 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-ink/85"
               />
             </F>
             {(files.length > 0 || form.existingImages.length > 0) && (
@@ -609,6 +654,12 @@ function ProductsManager() {
                 {p.isActive ? "Active" : "Hidden"}
               </button>
               <button
+                onClick={() => openCopy(p)}
+                className="text-sm text-ink/70 hover:text-ink"
+              >
+                Copy
+              </button>
+              <button
                 onClick={() => openEdit(p)}
                 className="text-sm text-ink/70 hover:text-ink"
               >
@@ -632,6 +683,7 @@ function ProductsManager() {
           border-radius: 0.75rem;
           padding: 0.55rem 0.85rem;
           background: var(--bg);
+          color: var(--ink);
           font-size: 0.95rem;
         }
       `}</style>

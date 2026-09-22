@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 :root {
+  /* This site has one fixed light theme — no dark-mode styles exist for it.
+     Without this, a browser/OS in dark mode renders native form controls
+     (file-input "Choose file" buttons, <select> dropdowns, date pickers)
+     with dark-mode default text color (white) while our own CSS still
+     gives them light backgrounds, producing invisible white-on-white text. */
+  color-scheme: light;
   --bg: #fbf7f0;
   --surface: #ffffff;
   --ink: #22201b;

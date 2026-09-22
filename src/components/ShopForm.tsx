@@ -153,7 +153,7 @@ export default function ShopForm({
           type="file"
           accept="image/*"
           onChange={(e) => setLogo(e.target.files?.[0] ?? null)}
-          className="text-sm"
+          className="text-sm text-ink file:mr-3 file:rounded-full file:border-0 file:bg-ink file:text-bg file:px-4 file:py-2 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-ink/85"
         />
       </Field>
       <Field label={`Banner ${shop?.bannerUrl ? "(replace)" : ""}`}>
@@ -161,7 +161,7 @@ export default function ShopForm({
           type="file"
           accept="image/*"
           onChange={(e) => setBanner(e.target.files?.[0] ?? null)}
-          className="text-sm"
+          className="text-sm text-ink file:mr-3 file:rounded-full file:border-0 file:bg-ink file:text-bg file:px-4 file:py-2 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-ink/85"
         />
       </Field>
 
@@ -186,6 +186,7 @@ export default function ShopForm({
           border-radius: 0.75rem;
           padding: 0.6rem 0.9rem;
           background: var(--surface);
+          color: var(--ink);
           font-size: 0.95rem;
         }
       `}</style>
