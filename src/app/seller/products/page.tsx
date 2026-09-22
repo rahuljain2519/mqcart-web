@@ -588,23 +588,35 @@ function ProductsManager() {
               />
             </F>
             {(files.length > 0 || form.existingImages.length > 0) && (
-              <div className="flex gap-2 mt-2">
-                {(files.length > 0
-                  ? files.map((f) => URL.createObjectURL(f))
-                  : form.existingImages
-                ).map((src, i) => (
-                  <button
-                    type="button"
-                    key={i}
-                    onClick={() => setForm({ ...form, coverIndex: i })}
-                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
-                      form.coverIndex === i ? "border-accent" : "border-transparent"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
+              <div className="mt-2">
+                {(files.length > 0 ? files.length : form.existingImages.length) > 1 && (
+                  <p className="text-xs text-muted mb-1">
+                    Tap a photo to set it as the cover image.
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  {(files.length > 0
+                    ? files.map((f) => URL.createObjectURL(f))
+                    : form.existingImages
+                  ).map((src, i) => (
+                    <button
+                      type="button"
+                      key={i}
+                      onClick={() => setForm({ ...form, coverIndex: i })}
+                      className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 ${
+                        form.coverIndex === i ? "border-accent" : "border-line"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      {form.coverIndex === i && (
+                        <span className="absolute bottom-0 inset-x-0 bg-accent text-white text-[10px] font-medium text-center leading-4">
+                          Cover
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
