@@ -384,6 +384,16 @@ export function watchShopsBySociety(
   return onSnapshot(q, (snap) => cb(mapShops(snap.docs)));
 }
 
+/** Every shop in a society regardless of active status — for admin browsing
+ *  (watchShopsBySociety above is the buyer-facing active-only version). */
+export function watchShopsBySocietyAll(
+  societyId: string,
+  cb: (shops: Shop[]) => void
+) {
+  const q = query(collection(db, "shops"), where("societyId", "==", societyId));
+  return onSnapshot(q, (snap) => cb(mapShops(snap.docs)));
+}
+
 /** Active products across the buyer's whole society — the app's Home feed. */
 export function watchProductsBySociety(
   societyId: string,

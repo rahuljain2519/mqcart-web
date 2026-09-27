@@ -2,8 +2,53 @@
 
 import { useEffect, useState } from "react";
 import RoleGuard from "@/components/RoleGuard";
-import { listAllSocieties, createSociety, deleteSociety } from "@/lib/data";
-import type { Society } from "@/types";
+import {
+  listAllSocieties,
+  createSociety,
+  deleteSociety,
+  watchShopsBySocietyAll,
+} from "@/lib/data";
+import type { Shop, Society } from "@/types";
+
+/** Shows every shop in a society (active or not) once expanded. */
+function SocietyShops({ societyId }: { societyId: string }) {
+  const [shops, setShops] = useState<Shop[] | null>(null);
+
+  useEffect(() => {
+    const unsub = watchShopsBySocietyAll(societyId, setShops);
+    return () => unsub();
+  }, [societyId]);
+
+  if (shops === null) return <p className="text-sm text-muted px-4 pb-4">Loading shops…</p>;
+  if (shops.length === 0)
+    return <p className="text-sm text-muted px-4 pb-4">No shops in this society yet.</p>;
+
+  return (
+    <ul className="px-4 pb-4 space-y-2">
+      {shops.map((s) => (
+        <li
+          key={s.shopId}
+          className="flex items-center justify-between rounded-xl border border-line bg-bg px-3 py-2"
+        >
+          <div>
+            <p className="text-sm font-medium">{s.shopName}</p>
+            <p className="text-xs text-muted">
+              {s.phone || "No phone"} · Plan {s.plan} · {s.productCount}/{s.productLimit}{" "}
+              products
+            </p>
+          </div>
+          <span
+            className={`text-xs rounded-full px-3 py-1 shrink-0 ${
+              s.isActive ? "bg-green-bg text-green" : "bg-line text-ink/60"
+            }`}
+          >
+            {s.isActive ? "Active" : "Inactive"}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function Societies() {
   const [societies, setSocieties] = useState<Society[] | null>(null);
@@ -11,6 +56,7 @@ function Societies() {
   const [city, setCity] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const load = () => listAllSocieties().then(setSocieties);
   useEffect(() => {
@@ -74,19 +120,30 @@ function Societies() {
       ) : (
         <ul className="border border-line rounded-2xl bg-surface divide-y divide-line">
           {societies.map((s) => (
-            <li key={s.id} className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">{s.name}</p>
-                <p className="text-sm text-muted">
-                  {s.city} {s.isActive ? "" : "· inactive"}
-                </p>
+            <li key={s.id}>
+              <div className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{s.name}</p>
+                  <p className="text-sm text-muted">
+                    {s.city} {s.isActive ? "" : "· inactive"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setExpanded(expanded === s.id ? null : s.id)}
+                    className="text-sm text-ink/70 hover:text-ink"
+                  >
+                    {expanded === s.id ? "Hide shops" : "View shops"}
+                  </button>
+                  <button
+                    onClick={() => remove(s)}
+                    className="text-sm text-muted hover:text-danger"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => remove(s)}
-                className="text-sm text-muted hover:text-danger"
-              >
-                Delete
-              </button>
+              {expanded === s.id && <SocietyShops societyId={s.id} />}
             </li>
           ))}
         </ul>
