@@ -100,6 +100,17 @@ function ShopDetail() {
               <p className="text-xs text-muted mt-1">
                 Delivery in {shop.deliveryMinValue}–{shop.deliveryMaxValue} {shop.deliveryUnit}
               </p>
+              {shop.phone && (
+                // Desktop browsers usually can't place a tel: call - show
+                // the number itself (still a tel: link for the browsers/
+                // devices that can act on it, e.g. mobile web).
+                <a
+                  href={`tel:${shop.phone}`}
+                  className="inline-flex items-center gap-1.5 mt-2 text-sm rounded-full bg-accent text-white px-4 py-1.5"
+                >
+                  Call: {shop.phone}
+                </a>
+              )}
             </div>
           </div>
 
