@@ -1081,3 +1081,20 @@ export async function refreshSellerRouteStatus(
   const res = await fn({ uid });
   return res.data;
 }
+
+/** Admin-only: pushes the seller's current seller_applications bank details
+ *  to their EXISTING Razorpay Route account (updating bank details alone
+ *  doesn't propagate automatically - this is the explicit sync step).
+ *  Razorpay re-verifies the new bank account, so routeStatus may drop out
+ *  of "activated" until that clears. See updateSellerRouteBankDetails in
+ *  functions/index.js. */
+export async function updateSellerRouteBankDetails(
+  uid: string
+): Promise<{ routeStatus: string }> {
+  const fn = httpsCallable<{ uid: string }, { routeStatus: string }>(
+    functions,
+    "updateSellerRouteBankDetails"
+  );
+  const res = await fn({ uid });
+  return res.data;
+}

@@ -13,6 +13,7 @@ import {
   syncShopSocietyToSeller,
   createSellerRouteAccount,
   refreshSellerRouteStatus,
+  updateSellerRouteBankDetails,
 } from "@/lib/data";
 import type { AppUser, Shop, Society } from "@/types";
 
@@ -85,6 +86,19 @@ function SellerRow({
       setShop((s) => (s ? { ...s, routeStatus } : s));
     } catch (err) {
       setRouteError(err instanceof Error ? err.message : "Could not refresh status.");
+    } finally {
+      setRouteBusy(false);
+    }
+  };
+
+  const syncBankDetails = async () => {
+    setRouteBusy(true);
+    setRouteError(null);
+    try {
+      const { routeStatus } = await updateSellerRouteBankDetails(user.uid);
+      setShop((s) => (s ? { ...s, routeStatus } : s));
+    } catch (err) {
+      setRouteError(err instanceof Error ? err.message : "Could not update bank details.");
     } finally {
       setRouteBusy(false);
     }
@@ -194,13 +208,23 @@ function SellerRow({
                         {routeBusy ? "Creating…" : "Create Razorpay account"}
                       </button>
                     ) : (
-                      <button
-                        onClick={refreshRoute}
-                        disabled={routeBusy}
-                        className="rounded-full border border-line px-4 py-1.5 hover:border-ink/40 disabled:opacity-60"
-                      >
-                        {routeBusy ? "Checking…" : "Refresh status"}
-                      </button>
+                      <>
+                        <button
+                          onClick={refreshRoute}
+                          disabled={routeBusy}
+                          className="rounded-full border border-line px-4 py-1.5 hover:border-ink/40 disabled:opacity-60"
+                        >
+                          {routeBusy ? "Checking…" : "Refresh status"}
+                        </button>
+                        <button
+                          onClick={syncBankDetails}
+                          disabled={routeBusy}
+                          title="Push the seller's current bank details (from Shop Settings) to their existing Razorpay account"
+                          className="rounded-full border border-line px-4 py-1.5 hover:border-ink/40 disabled:opacity-60"
+                        >
+                          {routeBusy ? "Updating…" : "Update bank details on Razorpay"}
+                        </button>
+                      </>
                     )}
                   </div>
                   {!shop.email && (
