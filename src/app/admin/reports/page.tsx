@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import RoleGuard from "@/components/RoleGuard";
+import { useAuth } from "@/context/AuthContext";
 import {
   buildTransactionsReport,
   transactionsReportToCsv,
   listUsersByRole,
   listAllSocieties,
+  updateOrderSettlementStatus,
   type TransactionReportRow,
 } from "@/lib/data";
 import type { AppUser, Society } from "@/types";
@@ -32,6 +34,7 @@ const PAYMENT_TYPES = [
 ];
 
 function Reports() {
+  const { profile } = useAuth();
   const [sellers, setSellers] = useState<AppUser[]>([]);
   const [societies, setSocieties] = useState<Society[]>([]);
 
@@ -44,6 +47,7 @@ function Reports() {
   const [rows, setRows] = useState<TransactionReportRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusBusyId, setStatusBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     listUsersByRole("seller").then(setSellers).catch(() => setSellers([]));
@@ -70,8 +74,36 @@ function Reports() {
     }
   };
 
+  const toggleSettled = async (row: TransactionReportRow) => {
+    if (!profile) return;
+    setStatusBusyId(row.orderId);
+    try {
+      await updateOrderSettlementStatus({
+        orderId: row.orderId,
+        sellerId: row.sellerId,
+        shopName: row.shopName,
+        settlementAmount: row.settlementAmount,
+        settled: !row.settled,
+        settledBy: profile.uid,
+      });
+      setRows((prev) =>
+        prev
+          ? prev.map((r) => (r.orderId === row.orderId ? { ...r, settled: !r.settled } : r))
+          : prev
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update settlement status.");
+    } finally {
+      setStatusBusyId(null);
+    }
+  };
+
   const total = useMemo(
     () => (rows ?? []).reduce((sum, r) => sum + r.totalAmount, 0),
+    [rows]
+  );
+  const settlementTotal = useMemo(
+    () => (rows ?? []).reduce((sum, r) => sum + r.settlementAmount, 0),
     [rows]
   );
 
@@ -87,8 +119,10 @@ function Reports() {
       <h1 className="font-display text-3xl mb-2">Transaction report</h1>
       <p className="text-muted mb-8">
         Every order (COD and online) — transaction type, seller name, shop name, bank account
-        &amp; IFSC, society, order ID, product details, and date. Filter below, then export
-        exactly what&apos;s shown.
+        &amp; IFSC, society, order ID, product details, date, and the seller&apos;s settlement
+        amount (online orders have a 2.4% platform commission deducted; COD keeps 100%, since the
+        seller already collected that cash directly). Tap Pending/Paid on an online order to mark
+        it settled right here. Filter below, then export exactly what&apos;s shown.
       </p>
 
       <div className="border border-line rounded-2xl bg-surface p-5 space-y-4 mb-6">
@@ -176,7 +210,8 @@ function Reports() {
           </button>
           {rows && (
             <span className="text-sm text-muted">
-              {rows.length} transactions · ₹{total.toFixed(0)} total
+              {rows.length} transactions · ₹{total.toFixed(0)} gross · ₹
+              {settlementTotal.toFixed(0)} settlement amount
             </span>
           )}
         </div>
@@ -191,7 +226,7 @@ function Reports() {
                 <th className="px-3 py-2 whitespace-nowrap">Date</th>
                 <th className="px-3 py-2 whitespace-nowrap">Type</th>
                 <th className="px-3 py-2 whitespace-nowrap">Payment</th>
-                <th className="px-3 py-2 whitespace-nowrap">Status</th>
+                <th className="px-3 py-2 whitespace-nowrap">Order Status</th>
                 <th className="px-3 py-2 whitespace-nowrap">Society</th>
                 <th className="px-3 py-2 whitespace-nowrap">Seller</th>
                 <th className="px-3 py-2 whitespace-nowrap">Shop</th>
@@ -199,38 +234,65 @@ function Reports() {
                 <th className="px-3 py-2 whitespace-nowrap">IFSC</th>
                 <th className="px-3 py-2">Products</th>
                 <th className="px-3 py-2 whitespace-nowrap text-right">Amount</th>
+                <th className="px-3 py-2 whitespace-nowrap text-right">Settlement Amt</th>
+                <th className="px-3 py-2 whitespace-nowrap">Settlement Status</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-3 py-6 text-center text-muted">
+                  <td colSpan={14} className="px-3 py-6 text-center text-muted">
                     No transactions match these filters.
                   </td>
                 </tr>
               ) : (
-                rows.map((r) => (
-                  <tr key={r.orderId} className="border-b border-line last:border-b-0">
-                    <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{r.orderId}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {r.date ? new Date(r.date).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap capitalize">{r.transactionType}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.paymentStatus}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.orderStatus}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.societyName}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.sellerName}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.shopName}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.bankAccountNumber || "—"}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.ifscCode || "—"}</td>
-                    <td className="px-3 py-2 max-w-xs truncate" title={r.productDetails}>
-                      {r.productDetails}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-right">
-                      ₹{r.totalAmount.toFixed(0)}
-                    </td>
-                  </tr>
-                ))
+                rows.map((r) => {
+                  const isOnline = r.transactionType === "razorpay";
+                  return (
+                    <tr key={r.orderId} className="border-b border-line last:border-b-0">
+                      <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{r.orderId}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {r.date ? new Date(r.date).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap capitalize">{r.transactionType}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r.paymentStatus}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r.orderStatus}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r.societyName}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r.sellerName}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r.shopName}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r.bankAccountNumber || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r.ifscCode || "—"}</td>
+                      <td className="px-3 py-2 max-w-xs truncate" title={r.productDetails}>
+                        {r.productDetails}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-right">
+                        ₹{r.totalAmount.toFixed(0)}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-right">
+                        ₹{r.settlementAmount.toFixed(0)}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {isOnline ? (
+                          <button
+                            onClick={() => toggleSettled(r)}
+                            disabled={statusBusyId === r.orderId}
+                            className={`rounded-full px-3 py-1 text-xs font-medium disabled:opacity-60 ${
+                              r.settled ? "bg-green-bg text-green" : "bg-line text-ink/60"
+                            }`}
+                          >
+                            {statusBusyId === r.orderId
+                              ? "…"
+                              : r.settled
+                                ? "Paid"
+                                : "Pending"}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted">COD — n/a</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

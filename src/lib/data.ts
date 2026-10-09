@@ -821,16 +821,20 @@ export async function listUnsettledAmountsBySeller(): Promise<UnsettledSellerTot
   for (const d of snap.docs) {
     const data = d.data();
     if (data.paymentStatus !== "paid" || data.settled === true) continue;
+    // Net of the 2.4% platform commission - what the seller is actually
+    // owed, matching the Reports page's Settlement Amount column. Using
+    // the gross totalAmount here would overpay every seller by 2.4%.
+    const net = calculateSettlementAmount(data.totalAmount, "razorpay");
     const existing = bySeller.get(data.sellerId);
     if (existing) {
       existing.orderIds.push(d.id);
-      existing.totalAmount += data.totalAmount;
+      existing.totalAmount += net;
     } else {
       bySeller.set(data.sellerId, {
         sellerId: data.sellerId,
         shopName: data.shopName ?? "",
         orderIds: [d.id],
-        totalAmount: data.totalAmount,
+        totalAmount: net,
       });
     }
   }
@@ -889,6 +893,16 @@ export async function listSettlementsForSeller(sellerId: string): Promise<Settle
 
 /* ----------------------------- Transaction report export (admin) --------------------------- */
 
+/** Platform commission on the seller's payout — 2.4% on online (Razorpay)
+ *  orders, 0% on COD (the seller already collected that cash directly, MQ
+ *  Cart never touched it). Shared by the report's "Settlement Amount"
+ *  column and the Settlements page's per-seller totals so the two always
+ *  agree on what a seller is actually owed. */
+export function calculateSettlementAmount(totalAmount: number, paymentMethod: string): number {
+  const commissionRate = paymentMethod === "razorpay" ? 0.024 : 0;
+  return totalAmount * (1 - commissionRate);
+}
+
 export interface TransactionReportRow {
   orderId: string;
   date: string;
@@ -896,12 +910,15 @@ export interface TransactionReportRow {
   paymentStatus: string;
   orderStatus: string;
   societyName: string;
+  sellerId: string;
   sellerName: string;
   shopName: string;
   bankAccountNumber: string;
   ifscCode: string;
   productDetails: string;
   totalAmount: number;
+  settlementAmount: number;
+  settled: boolean;
 }
 
 /** Admin-only: every order (optionally date-bounded), enriched with the
@@ -967,13 +984,16 @@ export async function buildTransactionsReport(filters?: {
   return orders.map((o) => {
     const bank = bankById.get(o.sellerId as string);
     const items = (o.items as OrderItem[] | undefined) ?? [];
+    const totalAmount = (o.totalAmount as number) ?? 0;
+    const paymentMethod = (o.paymentMethod as string) ?? "";
     return {
       orderId: o.id,
       date: toDate(o.createdAt as Timestamp | null)?.toISOString() ?? "",
-      transactionType: (o.paymentMethod as string) ?? "",
+      transactionType: paymentMethod,
       paymentStatus: (o.paymentStatus as string) ?? "",
       orderStatus: (o.status as string) ?? "",
       societyName: (o.societyName as string) ?? "",
+      sellerId: (o.sellerId as string) ?? "",
       sellerName: nameById.get(o.sellerId as string) ?? "",
       shopName: (o.shopName as string) ?? "",
       bankAccountNumber: bank?.bankAccountNumber ?? "",
@@ -981,9 +1001,51 @@ export async function buildTransactionsReport(filters?: {
       productDetails: items
         .map((it) => `${it.name}${it.optionName ? ` (${it.optionName})` : ""} x${it.quantity} @ ₹${it.price}`)
         .join("; "),
-      totalAmount: (o.totalAmount as number) ?? 0,
+      totalAmount,
+      settlementAmount: calculateSettlementAmount(totalAmount, paymentMethod),
+      settled: o.settled === true,
     };
   });
+}
+
+/** Admin-only: flip a single order's settlement status from the Reports
+ *  table. Marking "Paid" creates a one-order settlement record (same audit
+ *  trail as the Settlements page's batch action, using the commission-
+ *  adjusted settlementAmount, not the gross order total). Marking back to
+ *  "Pending" just unlinks the order - the settlement record itself is left
+ *  alone for audit purposes rather than deleted. */
+export async function updateOrderSettlementStatus(input: {
+  orderId: string;
+  sellerId: string;
+  shopName: string;
+  settlementAmount: number;
+  settled: boolean;
+  settledBy: string;
+}): Promise<void> {
+  if (!input.settled) {
+    await updateDoc(doc(db, "orders", input.orderId), {
+      settled: false,
+      settlementId: null,
+    });
+    return;
+  }
+
+  const settlementRef = doc(collection(db, "settlements"));
+  const batch = writeBatch(db);
+  batch.set(settlementRef, {
+    sellerId: input.sellerId,
+    shopName: input.shopName,
+    orderIds: [input.orderId],
+    totalAmount: input.settlementAmount,
+    note: "",
+    settledBy: input.settledBy,
+    settledAt: serverTimestamp(),
+  });
+  batch.update(doc(db, "orders", input.orderId), {
+    settled: true,
+    settlementId: settlementRef.id,
+  });
+  await batch.commit();
 }
 
 export function transactionsReportToCsv(rows: TransactionReportRow[]): string {
@@ -1000,6 +1062,8 @@ export function transactionsReportToCsv(rows: TransactionReportRow[]): string {
     "IFSC Code",
     "Product Details",
     "Total Amount",
+    "Settlement Amount",
+    "Settlement Status",
   ];
   const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const lines = [headers.map(escape).join(",")];
@@ -1018,6 +1082,8 @@ export function transactionsReportToCsv(rows: TransactionReportRow[]): string {
         r.ifscCode,
         r.productDetails,
         r.totalAmount,
+        r.settlementAmount.toFixed(2),
+        r.settled ? "Paid" : "Pending",
       ]
         .map(escape)
         .join(",")
