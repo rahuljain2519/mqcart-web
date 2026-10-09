@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RoleGuard from "@/components/RoleGuard";
-import { buildTransactionsReport, transactionsReportToCsv } from "@/lib/data";
+import {
+  buildTransactionsReport,
+  transactionsReportToCsv,
+  listUsersByRole,
+  listAllSocieties,
+  type TransactionReportRow,
+} from "@/lib/data";
+import type { AppUser, Society } from "@/types";
 
 function downloadCsv(filename: string, content: string) {
   // Prefix with a UTF-8 BOM so Excel renders the rupee sign correctly
@@ -18,26 +25,44 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
+const PAYMENT_TYPES = [
+  { value: "", label: "All" },
+  { value: "cod", label: "COD" },
+  { value: "razorpay", label: "Online (Razorpay)" },
+];
+
 function Reports() {
+  const [sellers, setSellers] = useState<AppUser[]>([]);
+  const [societies, setSocieties] = useState<Society[]>([]);
+
+  const [sellerId, setSellerId] = useState("");
+  const [societyId, setSocietyId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const [rows, setRows] = useState<TransactionReportRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastCount, setLastCount] = useState<number | null>(null);
 
-  const exportReport = async () => {
+  useEffect(() => {
+    listUsersByRole("seller").then(setSellers).catch(() => setSellers([]));
+    listAllSocieties().then(setSocieties).catch(() => setSocieties([]));
+  }, []);
+
+  const load = async () => {
     setBusy(true);
     setError(null);
     try {
-      const rows = await buildTransactionsReport({
+      const result = await buildTransactionsReport({
         startDate: startDate ? new Date(startDate) : undefined,
         // Include the whole end day, not just midnight.
         endDate: endDate ? new Date(endDate + "T23:59:59.999") : undefined,
+        sellerId: sellerId || undefined,
+        societyId: societyId || undefined,
+        paymentMethod: paymentMethod || undefined,
       });
-      setLastCount(rows.length);
-      const csv = transactionsReportToCsv(rows);
-      const today = new Date().toISOString().slice(0, 10);
-      downloadCsv(`mqcart-transactions-${today}.csv`, csv);
+      setRows(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not build the report.");
     } finally {
@@ -45,19 +70,75 @@ function Reports() {
     }
   };
 
+  const total = useMemo(
+    () => (rows ?? []).reduce((sum, r) => sum + r.totalAmount, 0),
+    [rows]
+  );
+
+  const exportFiltered = () => {
+    if (!rows) return;
+    const csv = transactionsReportToCsv(rows);
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCsv(`mqcart-transactions-${today}.csv`, csv);
+  };
+
   return (
-    <div className="mx-auto max-w-2xl px-5 py-12">
+    <div className="mx-auto max-w-6xl px-5 py-12">
       <h1 className="font-display text-3xl mb-2">Transaction report</h1>
       <p className="text-muted mb-8">
-        Exports every order (COD and online) as a CSV — transaction type, seller name, shop
-        name, bank account &amp; IFSC, society, order ID, product details, and date. Useful for
-        offline reconciliation and paying sellers via the Settlements page.
+        Every order (COD and online) — transaction type, seller name, shop name, bank account
+        &amp; IFSC, society, order ID, product details, and date. Filter below, then export
+        exactly what&apos;s shown.
       </p>
 
-      <div className="border border-line rounded-2xl bg-surface p-5 space-y-4">
-        <div className="grid sm:grid-cols-2 gap-3">
+      <div className="border border-line rounded-2xl bg-surface p-5 space-y-4 mb-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <label className="block">
-            <span className="text-sm text-ink/60">From (optional)</span>
+            <span className="text-sm text-ink/60">Seller</span>
+            <select
+              value={sellerId}
+              onChange={(e) => setSellerId(e.target.value)}
+              className="w-full border border-line rounded-lg px-3 py-2 mt-1 bg-bg"
+            >
+              <option value="">All</option>
+              {sellers.map((s) => (
+                <option key={s.uid} value={s.uid}>
+                  {s.name || s.phone}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm text-ink/60">Society</span>
+            <select
+              value={societyId}
+              onChange={(e) => setSocietyId(e.target.value)}
+              className="w-full border border-line rounded-lg px-3 py-2 mt-1 bg-bg"
+            >
+              <option value="">All</option>
+              {societies.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm text-ink/60">Payment type</span>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="w-full border border-line rounded-lg px-3 py-2 mt-1 bg-bg"
+            >
+              {PAYMENT_TYPES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm text-ink/60">From</span>
             <input
               type="date"
               value={startDate}
@@ -66,7 +147,7 @@ function Reports() {
             />
           </label>
           <label className="block">
-            <span className="text-sm text-ink/60">To (optional)</span>
+            <span className="text-sm text-ink/60">To</span>
             <input
               type="date"
               value={endDate}
@@ -75,21 +156,86 @@ function Reports() {
             />
           </label>
         </div>
-        <p className="text-xs text-muted">Leave both blank to export every order ever placed.</p>
 
         {error && <p className="text-sm text-danger">{error}</p>}
-        {lastCount !== null && !error && (
-          <p className="text-sm text-green">Exported {lastCount} transactions.</p>
-        )}
 
-        <button
-          onClick={exportReport}
-          disabled={busy}
-          className="rounded-full bg-ink text-bg px-6 py-2.5 font-medium disabled:opacity-60"
-        >
-          {busy ? "Building…" : "Export CSV"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={load}
+            disabled={busy}
+            className="rounded-full bg-ink text-bg px-6 py-2.5 font-medium disabled:opacity-60"
+          >
+            {busy ? "Loading…" : "Apply filters"}
+          </button>
+          <button
+            onClick={exportFiltered}
+            disabled={!rows || rows.length === 0}
+            className="rounded-full border border-line px-6 py-2.5 font-medium disabled:opacity-40"
+          >
+            Export CSV
+          </button>
+          {rows && (
+            <span className="text-sm text-muted">
+              {rows.length} transactions · ₹{total.toFixed(0)} total
+            </span>
+          )}
+        </div>
       </div>
+
+      {rows !== null && (
+        <div className="border border-line rounded-2xl bg-surface overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-ink/60">
+                <th className="px-3 py-2 whitespace-nowrap">Order ID</th>
+                <th className="px-3 py-2 whitespace-nowrap">Date</th>
+                <th className="px-3 py-2 whitespace-nowrap">Type</th>
+                <th className="px-3 py-2 whitespace-nowrap">Payment</th>
+                <th className="px-3 py-2 whitespace-nowrap">Status</th>
+                <th className="px-3 py-2 whitespace-nowrap">Society</th>
+                <th className="px-3 py-2 whitespace-nowrap">Seller</th>
+                <th className="px-3 py-2 whitespace-nowrap">Shop</th>
+                <th className="px-3 py-2 whitespace-nowrap">Bank account</th>
+                <th className="px-3 py-2 whitespace-nowrap">IFSC</th>
+                <th className="px-3 py-2">Products</th>
+                <th className="px-3 py-2 whitespace-nowrap text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="px-3 py-6 text-center text-muted">
+                    No transactions match these filters.
+                  </td>
+                </tr>
+              ) : (
+                rows.map((r) => (
+                  <tr key={r.orderId} className="border-b border-line last:border-b-0">
+                    <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{r.orderId}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {r.date ? new Date(r.date).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap capitalize">{r.transactionType}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.paymentStatus}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.orderStatus}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.societyName}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.sellerName}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.shopName}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.bankAccountNumber || "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.ifscCode || "—"}</td>
+                    <td className="px-3 py-2 max-w-xs truncate" title={r.productDetails}>
+                      {r.productDetails}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right">
+                      ₹{r.totalAmount.toFixed(0)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

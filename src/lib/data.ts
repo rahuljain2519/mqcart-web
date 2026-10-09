@@ -911,6 +911,9 @@ export interface TransactionReportRow {
 export async function buildTransactionsReport(filters?: {
   startDate?: Date;
   endDate?: Date;
+  sellerId?: string;
+  societyId?: string;
+  paymentMethod?: string;
 }): Promise<TransactionReportRow[]> {
   const clauses = [];
   if (filters?.startDate) {
@@ -921,10 +924,24 @@ export async function buildTransactionsReport(filters?: {
   }
 
   const snap = await getDocs(query(collection(db, "orders"), ...clauses));
-  const orders: Array<Record<string, unknown> & { id: string }> = snap.docs.map((d) => ({
+  let orders: Array<Record<string, unknown> & { id: string }> = snap.docs.map((d) => ({
     id: d.id,
     ...d.data(),
   }));
+
+  // Seller/society/payment-type filters applied client-side rather than as
+  // extra Firestore where() clauses - avoids needing composite indexes for
+  // every filter combination, and this is an admin tool over a modest
+  // dataset, not a hot path.
+  if (filters?.sellerId) {
+    orders = orders.filter((o) => o.sellerId === filters.sellerId);
+  }
+  if (filters?.societyId) {
+    orders = orders.filter((o) => o.societyId === filters.societyId);
+  }
+  if (filters?.paymentMethod) {
+    orders = orders.filter((o) => o.paymentMethod === filters.paymentMethod);
+  }
 
   const sellerIds = Array.from(new Set(orders.map((o) => o.sellerId as string)));
   const [userDocs, appDocs] = await Promise.all([
