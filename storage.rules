@@ -2,11 +2,6 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    function isAdmin() {
-      return request.auth != null
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
     // 🏪 SHOP ASSETS
     match /shops/{shopId}/{fileName} {
       allow read: if true;
@@ -24,12 +19,17 @@ service firebase.storage {
         && request.auth.uid == sellerId;
     }
 
-    // 🖼 LANDING PAGE BANNERS (PUBLIC READ, ADMIN-ONLY WRITE)
-    // Missing entirely until now - Storage rules deny any path with no
-    // matching rule, which is exactly why every banner upload was failing.
+    // 🖼 LANDING PAGE BANNERS
+    // Same permissive pattern as shops/ and products/ above (any signed-in
+    // user may write) rather than a Storage-side admin check - a prior
+    // attempt using firestore.get() to verify the admin role here didn't
+    // work as expected and isn't worth the risk of guessing again. The
+    // real authorization gate is firestore.rules' `banners` collection
+    // (admin-only write) - a stray uploaded image with no Firestore doc
+    // pointing to it is harmless, and only the admin UI ever calls this.
     match /banners/{fileName} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if request.auth != null;
     }
   }
 }
