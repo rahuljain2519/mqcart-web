@@ -1041,3 +1041,30 @@ export async function adminDeleteSeller(uid: string): Promise<void> {
   );
   await fn({ uid });
 }
+
+/** Admin-only, one-time per seller: creates a Razorpay Route linked account
+ *  from the seller's existing application KYC + their Shop Settings email.
+ *  See createSellerRouteAccount in functions/index.js. */
+export async function createSellerRouteAccount(
+  uid: string
+): Promise<{ accountId: string; routeStatus: string }> {
+  const fn = httpsCallable<{ uid: string }, { accountId: string; routeStatus: string }>(
+    functions,
+    "createSellerRouteAccount"
+  );
+  const res = await fn({ uid });
+  return res.data;
+}
+
+/** Admin-only: re-checks a seller's Route account with Razorpay and updates
+ *  the shop doc's routeStatus. See refreshSellerRouteStatus in functions/index.js. */
+export async function refreshSellerRouteStatus(
+  uid: string
+): Promise<{ routeStatus: string }> {
+  const fn = httpsCallable<{ uid: string }, { routeStatus: string }>(
+    functions,
+    "refreshSellerRouteStatus"
+  );
+  const res = await fn({ uid });
+  return res.data;
+}

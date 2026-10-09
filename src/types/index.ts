@@ -64,6 +64,16 @@ export interface Shop {
   deliveryMinMinutes?: number;
   deliveryMaxMinutes?: number;
   planStatus?: string;
+  /** Seller-provided; required before an admin can create a Razorpay Route
+   *  (linked account) for automatic settlement — nothing else in this app
+   *  collects an email. */
+  email?: string;
+  /** Razorpay Route — set once an admin creates a linked account for this
+   *  seller (see createSellerRouteAccount). */
+  razorpayAccountId?: string;
+  razorpayRouteProductId?: string;
+  /** "pending" | "needs_attention" | "under_review" | "activated" | "rejected" */
+  routeStatus?: string;
 }
 
 export type DeliveryUnit = "minutes" | "hours" | "days";

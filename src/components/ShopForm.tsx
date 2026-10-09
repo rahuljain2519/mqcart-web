@@ -29,6 +29,7 @@ export default function ShopForm({
   onDone: (shopId: string) => void;
 }) {
   const [shopName, setShopName] = useState(shop?.shopName ?? "");
+  const [email, setEmail] = useState(shop?.email ?? "");
   const [description, setDescription] = useState(shop?.description ?? "");
   const [unit, setUnit] = useState<DeliveryUnit>(shop?.deliveryUnit ?? "days");
   const [minV, setMinV] = useState(String(shop?.deliveryMinValue ?? 2));
@@ -75,6 +76,7 @@ export default function ShopForm({
 
       await updateShop(shopId, {
         shopName: shopName.trim(),
+        email: email.trim(),
         description: description.trim(),
         deliveryUnit: unit,
         deliveryMinValue: min,
@@ -104,6 +106,19 @@ export default function ShopForm({
           onChange={(e) => setShopName(e.target.value)}
           className="fld"
         />
+      </Field>
+
+      <Field label="Email">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="fld"
+        />
+        <span className="block text-xs text-ink/60 mt-1">
+          Needed before we can set up automatic payouts to your bank account.
+        </span>
       </Field>
 
       <Field label="Description">

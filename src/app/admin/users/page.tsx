@@ -11,6 +11,8 @@ import {
   adminUpdateUser,
   adminDeleteSeller,
   syncShopSocietyToSeller,
+  createSellerRouteAccount,
+  refreshSellerRouteStatus,
 } from "@/lib/data";
 import type { AppUser, Shop, Society } from "@/types";
 
@@ -29,6 +31,8 @@ function SellerRow({
   const [societyId, setSocietyId] = useState(user.societyId);
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [routeBusy, setRouteBusy] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && shop === undefined) getShopBySeller(user.uid).then(setShop);
@@ -55,6 +59,34 @@ function SellerRow({
       onChanged();
     } finally {
       setBusy(false);
+    }
+  };
+
+  const createRoute = async () => {
+    setRouteBusy(true);
+    setRouteError(null);
+    try {
+      const { routeStatus } = await createSellerRouteAccount(user.uid);
+      setShop((s) => (s ? { ...s, routeStatus } : s));
+      // accountId isn't reflected locally beyond routeStatus; a full
+      // re-fetch would show it, but routeStatus is all this panel displays.
+    } catch (err) {
+      setRouteError(err instanceof Error ? err.message : "Could not create Razorpay account.");
+    } finally {
+      setRouteBusy(false);
+    }
+  };
+
+  const refreshRoute = async () => {
+    setRouteBusy(true);
+    setRouteError(null);
+    try {
+      const { routeStatus } = await refreshSellerRouteStatus(user.uid);
+      setShop((s) => (s ? { ...s, routeStatus } : s));
+    } catch (err) {
+      setRouteError(err instanceof Error ? err.message : "Could not refresh status.");
+    } finally {
+      setRouteBusy(false);
     }
   };
 
@@ -141,6 +173,43 @@ function SellerRow({
                 >
                   {shop.isActive ? "Deactivate shop" : "Activate shop"} (cascades to products)
                 </button>
+
+                <div className="mt-4 pt-3 border-t border-line">
+                  <p className="text-ink/60 mb-1">Settlement (Razorpay Route)</p>
+                  <p className="text-muted mb-2">
+                    Status:{" "}
+                    <span className="font-medium text-ink">
+                      {shop.routeStatus ?? "not set up"}
+                    </span>
+                  </p>
+                  {routeError && <p className="text-danger mb-2">{routeError}</p>}
+                  <div className="flex flex-wrap gap-2">
+                    {!shop.razorpayAccountId ? (
+                      <button
+                        onClick={createRoute}
+                        disabled={routeBusy || !shop.email}
+                        title={!shop.email ? "Seller must add an email in Shop Settings first" : ""}
+                        className="rounded-full border border-line px-4 py-1.5 hover:border-ink/40 disabled:opacity-60"
+                      >
+                        {routeBusy ? "Creating…" : "Create Razorpay account"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={refreshRoute}
+                        disabled={routeBusy}
+                        className="rounded-full border border-line px-4 py-1.5 hover:border-ink/40 disabled:opacity-60"
+                      >
+                        {routeBusy ? "Checking…" : "Refresh status"}
+                      </button>
+                    )}
+                  </div>
+                  {!shop.email && (
+                    <p className="text-xs text-muted mt-2">
+                      Seller hasn&apos;t added an email in Shop Settings yet — required before
+                      creating their Razorpay account.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
