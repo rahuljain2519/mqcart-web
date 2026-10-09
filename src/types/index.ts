@@ -24,6 +24,15 @@ export interface AppUser {
   shopId?: string | null;
 }
 
+export interface Banner {
+  id: string;
+  imageUrl: string;
+  /** Optional destination when a viewer clicks the banner — e.g. /sell, /shops. */
+  linkUrl?: string;
+  order: number;
+  isActive: boolean;
+}
+
 export interface Society {
   id: string;
   name: string;

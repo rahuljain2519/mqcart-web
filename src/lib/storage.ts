@@ -56,6 +56,15 @@ export async function uploadShopImage(
   return getDownloadURL(r);
 }
 
+/** Landing-page carousel banner. Path banners/{bannerId}.jpg — bannerId is
+ *  pre-generated (see newBannerId in lib/data.ts) so this can run before the
+ *  Firestore doc exists. Web-only feature, no mobile-app counterpart yet. */
+export async function uploadBannerImage(bannerId: string, file: File): Promise<string> {
+  const r = ref(storage, `banners/${bannerId}.jpg`);
+  await uploadBytes(r, await downscaleImage(file), { contentType: "image/jpeg" });
+  return getDownloadURL(r);
+}
+
 /**
  * Product images. Path products/{shopId}/{productId}/image_{i}.jpg — matches the
  * app's ProductStorageService multi-image layout.

@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { listSocieties, watchProductsBySociety } from "@/lib/data";
 import { CATEGORIES, CATEGORY_EMOJI, matchesCategory } from "@/lib/categories";
 import ProductCard from "@/components/ProductCard";
+import BannerCarousel from "@/components/BannerCarousel";
 import CartBar from "@/components/CartBar";
 import AddressBar from "@/components/AddressBar";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -261,7 +262,9 @@ function GuestLanding() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-5 pt-16 pb-20 grid md:grid-cols-2 gap-14 items-center">
+    <div className="mx-auto max-w-6xl px-5 pt-10 pb-20">
+      <BannerCarousel />
+      <div className="grid md:grid-cols-2 gap-14 items-center">
       <div>
         <h1 className="font-display text-[3.2rem] leading-[1.05] max-w-lg">
           The shops downstairs, now a tap away.
@@ -313,6 +316,7 @@ function GuestLanding() {
               </li>
             ))}
         </ul>
+      </div>
       </div>
     </div>
   );

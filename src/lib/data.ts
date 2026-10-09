@@ -23,6 +23,7 @@ import { httpsCallable } from "firebase/functions";
 import { db, functions } from "./firebase";
 import type {
   AppUser,
+  Banner,
   Society,
   Shop,
   Product,
@@ -894,6 +895,55 @@ export function watchAnalyticsOverview(cb: (o: AnalyticsOverview | null) => void
 export async function listAllSocieties(): Promise<Society[]> {
   const snap = await getDocs(collection(db, "societies"));
   return snap.docs.map((s) => ({ id: s.id, ...(s.data() as Omit<Society, "id">) }));
+}
+
+/* --- Landing page banners (admin-managed, shown to everyone) --- */
+
+export function watchActiveBanners(cb: (banners: Banner[]) => void) {
+  const q = query(
+    collection(db, "banners"),
+    where("isActive", "==", true),
+    orderBy("order", "asc")
+  );
+  return onSnapshot(q, (snap) =>
+    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Banner, "id">) })))
+  );
+}
+
+export function watchAllBanners(cb: (banners: Banner[]) => void) {
+  const q = query(collection(db, "banners"), orderBy("order", "asc"));
+  return onSnapshot(q, (snap) =>
+    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Banner, "id">) })))
+  );
+}
+
+/** Pre-generates the doc id so the caller can upload the image to a path
+ *  keyed by it (banners/{bannerId}.jpg) before writing the doc. */
+export function newBannerId(): string {
+  return doc(collection(db, "banners")).id;
+}
+
+export async function createBanner(input: {
+  id: string;
+  imageUrl: string;
+  linkUrl?: string;
+  order: number;
+}) {
+  return setDoc(doc(db, "banners", input.id), {
+    imageUrl: input.imageUrl,
+    linkUrl: input.linkUrl ?? "",
+    order: input.order,
+    isActive: true,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function updateBanner(bannerId: string, patch: Partial<Banner>) {
+  return updateDoc(doc(db, "banners", bannerId), patch);
+}
+
+export async function deleteBanner(bannerId: string) {
+  return deleteDoc(doc(db, "banners", bannerId));
 }
 
 export async function createSociety(name: string, city: string) {

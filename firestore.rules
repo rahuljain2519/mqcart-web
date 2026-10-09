@@ -119,6 +119,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    /* =========================================================
+       🖼 LANDING PAGE BANNERS (PUBLIC READ, ADMIN WRITE)
+       ========================================================= */
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /societies/{societyId}/sellers/{sellerId} {
 
       // 👤 Seller can write ONLY their own document
