@@ -887,6 +887,128 @@ export async function listSettlementsForSeller(sellerId: string): Promise<Settle
   });
 }
 
+/* ----------------------------- Transaction report export (admin) --------------------------- */
+
+export interface TransactionReportRow {
+  orderId: string;
+  date: string;
+  transactionType: string;
+  paymentStatus: string;
+  orderStatus: string;
+  societyName: string;
+  sellerName: string;
+  shopName: string;
+  bankAccountNumber: string;
+  ifscCode: string;
+  productDetails: string;
+  totalAmount: number;
+}
+
+/** Admin-only: every order (optionally date-bounded), enriched with the
+ *  seller's name and bank details for a full offline-reconciliation report.
+ *  Covers both COD and online orders - "transaction type" is the column
+ *  that tells them apart. */
+export async function buildTransactionsReport(filters?: {
+  startDate?: Date;
+  endDate?: Date;
+}): Promise<TransactionReportRow[]> {
+  const clauses = [];
+  if (filters?.startDate) {
+    clauses.push(where("createdAt", ">=", Timestamp.fromDate(filters.startDate)));
+  }
+  if (filters?.endDate) {
+    clauses.push(where("createdAt", "<=", Timestamp.fromDate(filters.endDate)));
+  }
+
+  const snap = await getDocs(query(collection(db, "orders"), ...clauses));
+  const orders: Array<Record<string, unknown> & { id: string }> = snap.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  }));
+
+  const sellerIds = Array.from(new Set(orders.map((o) => o.sellerId as string)));
+  const [userDocs, appDocs] = await Promise.all([
+    Promise.all(sellerIds.map((uid) => getDoc(doc(db, "users", uid)))),
+    Promise.all(sellerIds.map((uid) => getDoc(doc(db, "seller_applications", uid)))),
+  ]);
+
+  const nameById = new Map<string, string>();
+  userDocs.forEach((snap, i) => {
+    if (snap.exists()) nameById.set(sellerIds[i], (snap.data() as AppUser).name || "");
+  });
+  const bankById = new Map<string, { bankAccountNumber: string; ifscCode: string }>();
+  appDocs.forEach((snap, i) => {
+    if (snap.exists()) {
+      const d = snap.data() as SellerApplication;
+      bankById.set(sellerIds[i], {
+        bankAccountNumber: d.bankAccountNumber ?? "",
+        ifscCode: d.ifscCode ?? "",
+      });
+    }
+  });
+
+  return orders.map((o) => {
+    const bank = bankById.get(o.sellerId as string);
+    const items = (o.items as OrderItem[] | undefined) ?? [];
+    return {
+      orderId: o.id,
+      date: toDate(o.createdAt as Timestamp | null)?.toISOString() ?? "",
+      transactionType: (o.paymentMethod as string) ?? "",
+      paymentStatus: (o.paymentStatus as string) ?? "",
+      orderStatus: (o.status as string) ?? "",
+      societyName: (o.societyName as string) ?? "",
+      sellerName: nameById.get(o.sellerId as string) ?? "",
+      shopName: (o.shopName as string) ?? "",
+      bankAccountNumber: bank?.bankAccountNumber ?? "",
+      ifscCode: bank?.ifscCode ?? "",
+      productDetails: items
+        .map((it) => `${it.name}${it.optionName ? ` (${it.optionName})` : ""} x${it.quantity} @ ₹${it.price}`)
+        .join("; "),
+      totalAmount: (o.totalAmount as number) ?? 0,
+    };
+  });
+}
+
+export function transactionsReportToCsv(rows: TransactionReportRow[]): string {
+  const headers = [
+    "Order ID",
+    "Date",
+    "Transaction Type",
+    "Payment Status",
+    "Order Status",
+    "Society Name",
+    "Seller Name",
+    "Shop Name",
+    "Bank Account Number",
+    "IFSC Code",
+    "Product Details",
+    "Total Amount",
+  ];
+  const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const lines = [headers.map(escape).join(",")];
+  for (const r of rows) {
+    lines.push(
+      [
+        r.orderId,
+        r.date,
+        r.transactionType,
+        r.paymentStatus,
+        r.orderStatus,
+        r.societyName,
+        r.sellerName,
+        r.shopName,
+        r.bankAccountNumber,
+        r.ifscCode,
+        r.productDetails,
+        r.totalAmount,
+      ]
+        .map(escape)
+        .join(",")
+    );
+  }
+  return lines.join("\n");
+}
+
 /* ----------------------------- Seller applications --------------------------- */
 
 export async function submitSellerApplication(app: Omit<SellerApplication, "createdAt" | "status">) {

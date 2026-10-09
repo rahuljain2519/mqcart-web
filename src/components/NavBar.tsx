@@ -23,6 +23,7 @@ export default function NavBar() {
           { href: "/admin/sellers", label: "Applications" },
           { href: "/admin/settlements", label: "Settlements" },
           { href: "/admin/banners", label: "Banners" },
+          { href: "/admin/reports", label: "Reports" },
         ]
       : profile?.role === "seller"
       ? [

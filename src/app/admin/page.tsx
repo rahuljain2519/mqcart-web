@@ -49,6 +49,11 @@ function AdminOverview() {
           title="Banners"
           body="Manage the landing page carousel"
         />
+        <NavCard
+          href="/admin/reports"
+          title="Reports"
+          body="Export a full transaction CSV"
+        />
       </div>
 
       <p className="text-sm text-muted mt-8">
