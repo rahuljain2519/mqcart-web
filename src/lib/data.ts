@@ -1030,6 +1030,19 @@ export async function getSellerApplication(
   return { ...(snap.data() as SellerApplication), createdAt: toDate(snap.data().createdAt) };
 }
 
+/** Bank details were optional at application time, so existing approved
+ *  sellers often never filled them in — this lets a seller add/update them
+ *  afterwards from Shop Settings (needed before admin can set up automatic
+ *  payouts via Razorpay Route). Firestore rules allow this specifically
+ *  while status stays 'approved' - a seller can't use it to change their
+ *  own application status. */
+export async function updateSellerBankDetails(
+  uid: string,
+  patch: { bankAccountNumber: string; ifscCode: string; bankName?: string }
+) {
+  return updateDoc(doc(db, "seller_applications", uid), patch);
+}
+
 /** Admin-only, irreversible: wipes every seller-specific doc/file for this
  *  user (shop, products, applications, subscriptions, payment records, KYC
  *  docs) and resets them back to a plain buyer. See adminDeleteSeller in

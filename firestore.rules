@@ -203,6 +203,16 @@ service cloud.firestore {
         && resource != null
         && resource.data.status in ['pending', 'rejected'];
 
+      // Bank details were optional at application time, so an already-
+      // approved seller may have none on file. Let them add/update just
+      // those fields afterwards (needed before admin can set up automatic
+      // Razorpay Route payouts) without reopening the rest of their KYC -
+      // status, PAN, business type, etc. stay locked once approved.
+      allow update: if isOwner(uid)
+        && resource.data.status == 'approved'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['bankAccountNumber', 'ifscCode', 'bankName']);
+
       // 👑 Admin override
       allow read, update, delete: if isAdmin();
     }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createShop,
   updateShop,
   linkShopToUser,
   toMinutes,
   getSellerApplication,
+  updateSellerBankDetails,
 } from "@/lib/data";
 import { uploadShopImage } from "@/lib/storage";
 import type { DeliveryUnit, Shop } from "@/types";
@@ -39,6 +40,23 @@ export default function ShopForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Bank details live on seller_applications, not the shop doc. They were
+  // optional at application time, so an already-approved seller may have
+  // none on file yet - let them add/update just these from here.
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [ifscCode, setIfscCode] = useState("");
+  const [bankName, setBankName] = useState("");
+
+  useEffect(() => {
+    if (mode !== "edit") return;
+    getSellerApplication(sellerId).then((app) => {
+      if (!app) return;
+      setBankAccountNumber(app.bankAccountNumber ?? "");
+      setIfscCode(app.ifscCode ?? "");
+      setBankName(app.bankName ?? "");
+    });
+  }, [mode, sellerId]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -48,6 +66,9 @@ export default function ShopForm({
     if (!shopName.trim()) return setError("Shop name is required.");
     if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max < min) {
       return setError("Enter a valid delivery time range.");
+    }
+    if ((bankAccountNumber.trim() || ifscCode.trim()) && !(bankAccountNumber.trim() && ifscCode.trim())) {
+      return setError("Enter both the account number and IFSC code, or leave both blank.");
     }
 
     setBusy(true);
@@ -89,6 +110,14 @@ export default function ShopForm({
 
       if (mode === "create") await linkShopToUser(uid, shopId);
 
+      if (bankAccountNumber.trim() && ifscCode.trim()) {
+        await updateSellerBankDetails(sellerId, {
+          bankAccountNumber: bankAccountNumber.trim(),
+          ifscCode: ifscCode.trim().toUpperCase(),
+          bankName: bankName.trim(),
+        });
+      }
+
       onDone(shopId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -120,6 +149,35 @@ export default function ShopForm({
           Needed before we can set up automatic payouts to your bank account.
         </span>
       </Field>
+
+      <div className="border border-line rounded-xl p-4 space-y-4">
+        <p className="text-sm font-medium">Bank account (for payouts)</p>
+        <p className="text-xs text-ink/60 -mt-2">
+          Optional at signup, but required before we can pay out your online
+          orders automatically.
+        </p>
+        <Field label="Account number">
+          <input
+            value={bankAccountNumber}
+            onChange={(e) => setBankAccountNumber(e.target.value)}
+            className="fld"
+          />
+        </Field>
+        <Field label="IFSC code">
+          <input
+            value={ifscCode}
+            onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+            className="fld"
+          />
+        </Field>
+        <Field label="Account holder name">
+          <input
+            value={bankName}
+            onChange={(e) => setBankName(e.target.value)}
+            className="fld"
+          />
+        </Field>
+      </div>
 
       <Field label="Description">
         <textarea
