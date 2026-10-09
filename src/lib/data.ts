@@ -29,6 +29,7 @@ import type {
   Product,
   Order,
   OrderItem,
+  Settlement,
   SellerApplication,
   SellerPlan,
   SellerSubscription,
@@ -788,6 +789,101 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
   return updateDoc(doc(db, "orders", orderId), {
     status,
     updatedAt: serverTimestamp(),
+  });
+}
+
+/* ----------------------------- Manual settlement (admin) --------------------------- */
+//
+// Option A: fully manual settlement. Online (razorpay) orders collect 100%
+// into MQ Cart's own Razorpay account with no automatic payout (Route is
+// built and deployed, but deliberately not being activated per seller for
+// now). Admin instead sees what each seller is owed, pays them directly by
+// bank transfer, and records it here. COD orders never appear - the seller
+// already collected that cash directly, nothing to settle.
+
+export type UnsettledSellerTotal = {
+  sellerId: string;
+  shopName: string;
+  orderIds: string[];
+  totalAmount: number;
+};
+
+/** Admin-only: every online order not yet marked settled, grouped by
+ *  seller. Single-field query (paymentMethod only) + client-side filtering
+ *  on paymentStatus/settled so this doesn't need a composite index -
+ *  acceptable at this app's order volume; revisit if that changes. */
+export async function listUnsettledAmountsBySeller(): Promise<UnsettledSellerTotal[]> {
+  const snap = await getDocs(
+    query(collection(db, "orders"), where("paymentMethod", "==", "razorpay"))
+  );
+
+  const bySeller = new Map<string, UnsettledSellerTotal>();
+  for (const d of snap.docs) {
+    const data = d.data();
+    if (data.paymentStatus !== "paid" || data.settled === true) continue;
+    const existing = bySeller.get(data.sellerId);
+    if (existing) {
+      existing.orderIds.push(d.id);
+      existing.totalAmount += data.totalAmount;
+    } else {
+      bySeller.set(data.sellerId, {
+        sellerId: data.sellerId,
+        shopName: data.shopName ?? "",
+        orderIds: [d.id],
+        totalAmount: data.totalAmount,
+      });
+    }
+  }
+  return Array.from(bySeller.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+}
+
+/** Admin-only: record that a seller has been paid (by bank transfer, done
+ *  outside the app) for a batch of orders, and mark those orders settled so
+ *  they drop off future reports. */
+export async function markOrdersSettled(input: {
+  sellerId: string;
+  shopName: string;
+  orderIds: string[];
+  totalAmount: number;
+  note?: string;
+  settledBy: string;
+}): Promise<string> {
+  const settlementRef = doc(collection(db, "settlements"));
+  const batch = writeBatch(db);
+
+  batch.set(settlementRef, {
+    sellerId: input.sellerId,
+    shopName: input.shopName,
+    orderIds: input.orderIds,
+    totalAmount: input.totalAmount,
+    note: input.note ?? "",
+    settledBy: input.settledBy,
+    settledAt: serverTimestamp(),
+  });
+
+  for (const orderId of input.orderIds) {
+    batch.update(doc(db, "orders", orderId), {
+      settled: true,
+      settlementId: settlementRef.id,
+    });
+  }
+
+  await batch.commit();
+  return settlementRef.id;
+}
+
+/** Admin-only: past settlements for one seller, most recent first. */
+export async function listSettlementsForSeller(sellerId: string): Promise<Settlement[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, "settlements"),
+      where("sellerId", "==", sellerId),
+      orderBy("settledAt", "desc")
+    )
+  );
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return { id: d.id, ...data, settledAt: toDate(data.settledAt) } as Settlement;
   });
 }
 

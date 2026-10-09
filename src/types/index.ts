@@ -177,6 +177,25 @@ export interface Order {
   paymentStatus: PaymentStatus;
   createdAt?: Date | null;
   updatedAt?: Date | null;
+  /** Manual settlement (see Settlement below) — only meaningful for
+   *  paymentMethod "razorpay" orders. COD orders are never settled through
+   *  this mechanism since the seller already collected cash directly. */
+  settled?: boolean;
+  settlementId?: string;
+}
+
+/** A record of an admin manually paying a seller their share of a batch of
+ *  online orders (Option A - fully manual settlement, no Razorpay Route
+ *  payout). Created by markOrdersSettled in lib/data.ts. */
+export interface Settlement {
+  id: string;
+  sellerId: string;
+  shopName: string;
+  orderIds: string[];
+  totalAmount: number;
+  note?: string;
+  settledAt?: Date | null;
+  settledBy: string;
 }
 
 export interface SellerApplication {

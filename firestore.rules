@@ -266,6 +266,16 @@ service cloud.firestore {
     }
 
     /* =========================================================
+       💰 MANUAL SELLER SETTLEMENTS (ADMIN ONLY)
+       Option A settlement - admin records a manual bank transfer to a
+       seller covering a batch of online orders. See markOrdersSettled.
+       ========================================================= */
+
+    match /settlements/{settlementId} {
+      allow read, write: if isAdmin();
+    }
+
+    /* =========================================================
        💳 SELLER PAYMENTS (CLIENT → CF VERIFIED)
        ========================================================= */
 
