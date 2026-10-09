@@ -60,12 +60,12 @@ export default function BannerCarousel() {
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl border border-line bg-surface mb-10"
+      className="relative w-full aspect-[5/2] overflow-hidden rounded-2xl border border-line bg-surface mb-10"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
       <div
-        className="flex h-44 sm:h-60 md:h-72"
+        className="flex h-full"
         style={{
           width: `${slides.length * 100}%`,
           transform: `translateX(-${(index * 100) / slides.length}%)`,
