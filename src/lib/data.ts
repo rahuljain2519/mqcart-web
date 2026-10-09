@@ -1201,13 +1201,18 @@ export async function listAllSocieties(): Promise<Society[]> {
 /* --- Landing page banners (admin-managed, shown to everyone) --- */
 
 export function watchActiveBanners(cb: (banners: Banner[]) => void) {
-  const q = query(
-    collection(db, "banners"),
-    where("isActive", "==", true),
-    orderBy("order", "asc")
-  );
+  // isActive filtered client-side rather than as a where() clause - combined
+  // with orderBy("order") on a different field that needs a composite index
+  // Firestore doesn't have here, which made the listener fail silently
+  // (no error handler) and banners never appeared. This collection is tiny,
+  // so sorting server-side and filtering here is simpler than deploying one.
+  const q = query(collection(db, "banners"), orderBy("order", "asc"));
   return onSnapshot(q, (snap) =>
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Banner, "id">) })))
+    cb(
+      snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<Banner, "id">) }))
+        .filter((b) => b.isActive)
+    )
   );
 }
 
