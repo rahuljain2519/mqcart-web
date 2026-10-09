@@ -193,6 +193,7 @@ function Feed({
       </div>
 
       <div className="mx-auto w-full max-w-6xl px-5 pt-4 flex-1">
+        <BannerCarousel />
         {showSellCta && (
           <Link
             href="/sell"
