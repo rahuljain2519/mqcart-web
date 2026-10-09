@@ -116,27 +116,41 @@ export default function BannerCarousel() {
 }
 
 function BannerSlide({ banner, widthPercent }: { banner: Banner; widthPercent: number }) {
-  const img = (
-    <Image
-      src={banner.imageUrl}
-      alt=""
-      fill
-      sizes="(max-width: 768px) 100vw, 1152px"
-      className="object-contain"
-      priority
-    />
+  const content = (
+    <>
+      {/* Blurred, scaled-up copy fills the frame behind images that don't
+       *  match the carousel's wide aspect ratio, instead of leaving bare
+       *  white space either side of a letterboxed object-contain image. */}
+      <Image
+        src={banner.imageUrl}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 100vw, 1152px"
+        className="object-cover scale-110 blur-2xl"
+        aria-hidden
+      />
+      <div className="absolute inset-0 bg-black/10" />
+      <Image
+        src={banner.imageUrl}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 100vw, 1152px"
+        className="object-contain"
+        priority
+      />
+    </>
   );
   return (
     <div
-      className="relative h-full shrink-0"
+      className="relative h-full shrink-0 overflow-hidden"
       style={{ width: `${widthPercent}%` }}
     >
       {banner.linkUrl ? (
         <Link href={banner.linkUrl} className="block relative h-full w-full">
-          {img}
+          {content}
         </Link>
       ) : (
-        <div className="relative h-full w-full">{img}</div>
+        <div className="relative h-full w-full">{content}</div>
       )}
     </div>
   );
