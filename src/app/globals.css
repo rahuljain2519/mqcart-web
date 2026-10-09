@@ -14,6 +14,9 @@
   --line: #e4ddd0;
   --accent: #ff7a00;
   --accent-ink: #7a3900;
+  /* Peach header background - matches the app's home-screen header exactly
+     (0xFFFFE1CC) so the web header reads as the same brand on both. */
+  --accent-soft: #ffe1cc;
   --green: #1f6f5c;
   --green-bg: #e8f0ec;
   --danger: #c4432e;
@@ -29,6 +32,7 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
   --color-green: var(--green);
   --color-green-bg: var(--green-bg);
   --color-danger: var(--danger);

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
@@ -41,10 +42,19 @@ export default function NavBar() {
           { href: "/sell", label: "Sell" },
         ];
 
+  // Peach header on the home page only - matches the app, which colors its
+  // header this way exclusively on the Home tab (other tabs use a plain bar).
+  const isHome = pathname === "/";
+
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
+    <header
+      className={`sticky top-0 z-30 border-b border-line backdrop-blur ${
+        isHome ? "bg-accent-soft/95" : "bg-surface/95"
+      }`}
+    >
       <div className="mx-auto max-w-6xl px-5 flex items-center justify-between h-16">
-        <Link href="/" className="font-display text-2xl tracking-tight text-ink">
+        <Link href="/" className="flex items-center gap-2 font-display text-2xl tracking-tight text-ink">
+          <Image src="/logo.png" alt="" width={32} height={32} className="rounded-lg" priority />
           MQ Cart
         </Link>
 

@@ -122,7 +122,7 @@ function BannerSlide({ banner, widthPercent }: { banner: Banner; widthPercent: n
       alt=""
       fill
       sizes="(max-width: 768px) 100vw, 1152px"
-      className="object-cover"
+      className="object-contain"
       priority
     />
   );

@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     "Order from the shops inside your own residential society. Browse, pay, and track delivery — all in one place.",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "MQ Cart" },
+  icons: { icon: "/logo.png", apple: "/logo.png" },
 };
 
 export const viewport: Viewport = {
