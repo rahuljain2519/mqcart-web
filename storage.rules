@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return request.auth != null
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // 🏪 SHOP ASSETS
+    match /shops/{shopId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 📦 PRODUCT IMAGES (NEW STRUCTURE)
+    match /products/{shopId}/{productId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    // SELLER DOCUMENTS
+		match /seller_documents/{societyId}/{sellerId}/{fileName} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == sellerId;
+    }
+
+    // 🖼 LANDING PAGE BANNERS (PUBLIC READ, ADMIN-ONLY WRITE)
+    // Missing entirely until now - Storage rules deny any path with no
+    // matching rule, which is exactly why every banner upload was failing.
+    match /banners/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
