@@ -39,6 +39,16 @@ function AdminOverview() {
           title="Applications"
           body="Review seller applications"
         />
+        <NavCard
+          href="/admin/settlements"
+          title="Settlements"
+          body="Pay sellers for online orders & record it"
+        />
+        <NavCard
+          href="/admin/banners"
+          title="Banners"
+          body="Manage the landing page carousel"
+        />
       </div>
 
       <p className="text-sm text-muted mt-8">
