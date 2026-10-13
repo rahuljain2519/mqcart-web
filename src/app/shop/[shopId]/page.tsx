@@ -67,6 +67,26 @@ function ShopDetail() {
     );
   }
 
+  // The /shops list and home feed both already scope to the buyer's own
+  // society, so this only triggers when a shop page is reached out-of-band
+  // - a stale link/bookmark, or browser history held onto after switching
+  // societies in Profile - which otherwise let a buyer order from a shop in
+  // a different society entirely with no warning (order #3KHKZO).
+  if (profile?.societyId && profile.societyId !== shop.societyId) {
+    return (
+      <div className="mx-auto max-w-xl px-5 py-16 text-center">
+        <h1 className="font-display text-2xl mb-2">Not in your society</h1>
+        <p className="text-muted mb-6">
+          This shop is in a different society than the one on your profile, so it isn&rsquo;t
+          available to order from here.
+        </p>
+        <Link href="/shops" className="rounded-full bg-accent text-white px-6 py-3 font-medium">
+          Browse shops in your society
+        </Link>
+      </div>
+    );
+  }
+
   const blockedByOtherShop = singleShopId && singleShopId !== shopId;
 
   return (

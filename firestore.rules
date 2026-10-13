@@ -251,9 +251,20 @@ service cloud.firestore {
         || isAdmin()
       );
 
-      // Buyer places their own order.
+      // Buyer places their own order. Also require the order's societyId
+      // to match the seller's own current societyId - the client only
+      // stamps the buyer's societyId onto the order with no check that the
+      // shop belongs to the same society, which let a buyer who reached a
+      // shop page out-of-band (stale link/bookmark, or browser history
+      // after switching societies) complete checkout against a seller in a
+      // different society entirely (order #3KHKZO, 2026-10-13). This is the
+      // backstop that holds even if a client build ships without the
+      // matching UI guard.
       allow create: if isSignedIn()
-        && request.resource.data.buyerId == request.auth.uid;
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.societyId ==
+             get(/databases/$(database)/documents/users/$(request.resource.data.sellerId))
+               .data.societyId;
 
       // Buyer (cancel) or seller (status) or admin.
       allow update: if isSignedIn() && (
