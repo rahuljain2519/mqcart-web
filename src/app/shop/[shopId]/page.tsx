@@ -7,7 +7,7 @@ import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import { watchShopById, watchProductsByShop } from "@/lib/data";
+import { watchShopById, watchProductsByShop, getUser } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CartBar from "@/components/CartBar";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -35,6 +35,22 @@ function ShopDetail() {
       unsubProducts();
     };
   }, [shopId]);
+
+  // shop.phone was never actually collected anywhere in shop creation/edit
+  // (no phone field exists on ShopForm) - fall back to the seller's own
+  // account phone, which is always set, so this has a number to call.
+  const [fallbackPhone, setFallbackPhone] = useState<string | null>(null);
+  useEffect(() => {
+    if (!shop || shop.phone) return;
+    let cancelled = false;
+    getUser(shop.sellerId).then((seller) => {
+      if (!cancelled) setFallbackPhone(seller?.phone || null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [shop]);
+  const callPhone = shop?.phone || fallbackPhone;
 
   const shown = useMemo(() => {
     if (!products) return [];
@@ -120,15 +136,15 @@ function ShopDetail() {
               <p className="text-xs text-muted mt-1">
                 Delivery in {shop.deliveryMinValue}–{shop.deliveryMaxValue} {shop.deliveryUnit}
               </p>
-              {shop.phone && (
+              {callPhone && (
                 // Desktop browsers usually can't place a tel: call - show
                 // the number itself (still a tel: link for the browsers/
                 // devices that can act on it, e.g. mobile web).
                 <a
-                  href={`tel:${shop.phone}`}
+                  href={`tel:${callPhone}`}
                   className="inline-flex items-center gap-1.5 mt-2 text-sm rounded-full bg-accent text-white px-4 py-1.5"
                 >
-                  Call: {shop.phone}
+                  Call: {callPhone}
                 </a>
               )}
             </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
-import { watchOrdersByBuyer } from "@/lib/data";
+import { watchOrdersByBuyer, getUser } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import type { Order, OrderStatus } from "@/types";
 
@@ -48,6 +48,25 @@ function Timeline({ status }: { status: OrderStatus }) {
 }
 
 function OrderCard({ order }: { order: Order }) {
+  // shopPhone was never actually collected anywhere in shop creation/edit
+  // (no phone field exists on ShopForm) - every historical order has it
+  // empty. Fall back to the seller's own account phone, which is always
+  // set (it's their login identifier), so "Call store" has a number to
+  // call instead of silently doing nothing.
+  const [fallbackPhone, setFallbackPhone] = useState<string | null>(null);
+  useEffect(() => {
+    if (order.shopPhone) return;
+    let cancelled = false;
+    getUser(order.sellerId).then((seller) => {
+      if (!cancelled) setFallbackPhone(seller?.phone || null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [order.shopPhone, order.sellerId]);
+
+  const callPhone = order.shopPhone || fallbackPhone;
+
   return (
     <li className="border border-line rounded-2xl bg-surface p-5">
       <div className="flex items-center justify-between">
@@ -70,15 +89,15 @@ function OrderCard({ order }: { order: Order }) {
       </div>
 
       {(order.status === "placed" || order.status === "accepted") &&
-        order.shopPhone && (
+        callPhone && (
           // Desktop browsers usually can't place a tel: call — show the
           // number itself (still a tel: link for the browsers/devices
           // that can act on it, e.g. mobile web).
           <a
-            href={`tel:${order.shopPhone}`}
+            href={`tel:${callPhone}`}
             className="inline-flex items-center gap-1.5 mt-3 text-sm rounded-full bg-accent text-white px-4 py-1.5"
           >
-            Call store: {order.shopPhone}
+            Call store: {callPhone}
           </a>
         )}
 
