@@ -58,6 +58,12 @@ export const ChevronDownIcon = ({ className }: P) => (
   </svg>
 );
 
+export const PencilIcon = ({ className }: P) => (
+  <svg className={className ?? "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16.5 3.5a1.9 1.9 0 0 1 2.7 2.7L7 18.4 3 19l.6-4L16.5 3.5Z" />
+  </svg>
+);
+
 export const SellIcon = ({ className }: P) => (
   <svg className={className ?? base} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 3h7a2 2 0 0 1 2 2v7l-9.5 9.5a2 2 0 0 1-2.8 0L3 16.3a2 2 0 0 1 0-2.8L12 4Z" />

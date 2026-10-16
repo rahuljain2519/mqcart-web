@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getSociety } from "@/lib/data";
-import { ChevronDownIcon } from "./icons";
+import { PencilIcon } from "./icons";
 
-/** "Delivering to Flat 402, Green Valley ▾" — orients the buyer to which
+/** "Delivering to Flat 402, Green Valley ✏️" — orients the buyer to which
  *  society they're shopping, mirroring the mobile Home header. Tapping it
- *  goes to the profile edit screen. */
+ *  goes to the profile edit screen. A pencil icon, not a chevron - there's
+ *  only ever one address per account (no saved-address list to pick from),
+ *  so a dropdown arrow here wrongly implied a selector that doesn't exist. */
 export default function AddressBar() {
   const { profile } = useAuth();
   const [society, setSociety] = useState<string>("");
@@ -33,7 +35,7 @@ export default function AddressBar() {
     >
       <span className="text-accent-ink">📍</span>
       <span className="font-medium truncate max-w-[70vw]">{line}</span>
-      <ChevronDownIcon className="w-4 h-4 text-ink/50 shrink-0" />
+      <PencilIcon className="w-3.5 h-3.5 text-ink/50 shrink-0" />
     </Link>
   );
 }
