@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import { CartIcon } from "./icons";
+import { CartIcon, SellIcon } from "./icons";
 
 export default function NavBar() {
   const { profile, firebaseUser, signOut } = useAuth();
@@ -75,6 +75,18 @@ export default function NavBar() {
         </nav>
 
         <div className="flex items-center gap-4">
+          {profile?.role === "buyer" && profile.sellerStatus === "none" && (
+            // Compact corner icon instead of the big inline CTA card that
+            // used to sit at the top of the home feed.
+            <Link
+              href="/sell"
+              className="text-ink/80 hover:text-ink"
+              aria-label="Become a seller"
+              title="Become a seller"
+            >
+              <SellIcon className="w-6 h-6" />
+            </Link>
+          )}
           {profile?.role !== "admin" && (
             <Link
               href="/cart"

@@ -58,11 +58,7 @@ export default function HomePage() {
 
   if (profile?.role === "buyer" || profile?.role === "seller")
     return (
-      <Feed
-        societyId={profile.societyId}
-        viewerUid={profile.uid}
-        showSellCta={profile.role === "buyer" && profile.sellerStatus === "none"}
-      />
+      <Feed societyId={profile.societyId} viewerUid={profile.uid} />
     );
 
   return (
@@ -83,11 +79,9 @@ const SEARCH_HINTS = [
 function Feed({
   societyId,
   viewerUid,
-  showSellCta,
 }: {
   societyId: string;
   viewerUid: string;
-  showSellCta: boolean;
 }) {
   const { singleShopId, addItem, clear } = useCart();
   const [products, setProducts] = useState<Product[] | null>(null);
@@ -194,20 +188,6 @@ function Feed({
 
       <div className="mx-auto w-full max-w-6xl px-5 pt-4 flex-1">
         <BannerCarousel />
-        {showSellCta && (
-          <Link
-            href="/sell"
-            className="flex items-center justify-between rounded-2xl border border-line bg-surface px-5 py-4 mb-4 hover:border-ink/30 transition-colors"
-          >
-            <span>
-              <span className="font-medium">Become a seller</span>
-              <span className="block text-sm text-muted">
-                Sell to your society from your own shop.
-              </span>
-            </span>
-            <span className="text-accent-ink text-sm font-medium">Get started →</span>
-          </Link>
-        )}
         {singleShopId && (
           <p className="text-xs text-muted mb-3">
             Your cart has items from one shop — clear it to order from another.
