@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
-import { watchOrdersByBuyer, getUser } from "@/lib/data";
+import { watchOrdersByBuyer, getUser, cancelOrder } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import type { Order, OrderStatus } from "@/types";
 
@@ -13,6 +14,7 @@ const CHIP: Record<OrderStatus, string> = {
   accepted: "bg-line text-ink/70",
   delivered: "bg-green-bg text-green",
   rejected: "bg-danger/10 text-danger",
+  cancelled: "bg-line text-ink/60",
 };
 
 const LABEL: Record<OrderStatus, string> = {
@@ -20,12 +22,13 @@ const LABEL: Record<OrderStatus, string> = {
   accepted: "Accepted",
   delivered: "Delivered",
   rejected: "Rejected",
+  cancelled: "Cancelled",
 };
 
 const STEPS: OrderStatus[] = ["placed", "accepted", "delivered"];
 
 function Timeline({ status }: { status: OrderStatus }) {
-  if (status === "rejected") return null;
+  if (status === "rejected" || status === "cancelled") return null;
   const activeIdx = STEPS.indexOf(status);
   return (
     <div className="flex items-center mt-3">
@@ -66,6 +69,22 @@ function OrderCard({ order }: { order: Order }) {
   }, [order.shopPhone, order.sellerId]);
 
   const callPhone = order.shopPhone || fallbackPhone;
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const doCancel = async () => {
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelOrder(order);
+      setConfirmingCancel(false);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Could not cancel the order.");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <li className="border border-line rounded-2xl bg-surface p-5">
@@ -82,6 +101,12 @@ function OrderCard({ order }: { order: Order }) {
       <p className="text-sm text-muted">from {order.shopName}</p>
 
       <Timeline status={order.status} />
+
+      {order.status === "rejected" && order.rejectionReason && (
+        <p className="text-sm text-danger bg-danger/10 rounded-xl px-3 py-2 mt-3">
+          Declined by the seller: {order.rejectionReason}
+        </p>
+      )}
 
       <div className="text-sm text-muted mt-3">
         <p className="text-ink/80 font-medium">Flat {order.flatNumber}</p>
@@ -100,6 +125,27 @@ function OrderCard({ order }: { order: Order }) {
             Call store: {callPhone}
           </a>
         )}
+
+      {order.status === "placed" && (
+        <>
+          {cancelError && <p className="text-sm text-danger mt-2">{cancelError}</p>}
+          <button
+            onClick={() => setConfirmingCancel(true)}
+            className="inline-block mt-3 ml-2 text-sm rounded-full border border-line px-4 py-1.5 hover:border-danger hover:text-danger transition-colors"
+          >
+            Cancel order
+          </button>
+          <ConfirmDialog
+            open={confirmingCancel}
+            title="Cancel this order?"
+            message="The seller hasn't accepted it yet. This can't be undone."
+            confirmLabel={cancelling ? "Cancelling…" : "Cancel order"}
+            cancelLabel="Keep order"
+            onConfirm={doCancel}
+            onCancel={() => setConfirmingCancel(false)}
+          />
+        </>
+      )}
 
       <ul className="text-sm mt-3 divide-y divide-line border-t border-line">
         {order.items.map((it, idx) => (
@@ -139,6 +185,7 @@ function OrdersView() {
   const active = orders?.filter((o) => o.status === "placed" || o.status === "accepted") ?? [];
   const delivered = orders?.filter((o) => o.status === "delivered") ?? [];
   const rejected = orders?.filter((o) => o.status === "rejected") ?? [];
+  const cancelled = orders?.filter((o) => o.status === "cancelled") ?? [];
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-12">
@@ -173,6 +220,13 @@ function OrdersView() {
           {rejected.length > 0 && (
             <Section title="Rejected">
               {rejected.map((o) => (
+                <OrderCard key={o.id} order={o} />
+              ))}
+            </Section>
+          )}
+          {cancelled.length > 0 && (
+            <Section title="Cancelled">
+              {cancelled.map((o) => (
                 <OrderCard key={o.id} order={o} />
               ))}
             </Section>

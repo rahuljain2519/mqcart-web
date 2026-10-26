@@ -792,6 +792,36 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
   });
 }
 
+/** Seller declines an order - a reason is required so the buyer knows why. */
+export async function rejectOrder(orderId: string, reason: string) {
+  return updateDoc(doc(db, "orders", orderId), {
+    status: "rejected",
+    rejectionReason: reason,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Buyer backs out of their own order. Only "placed" orders are eligible
+ *  (enforced here and in firestore.rules) - once a seller has accepted and
+ *  started preparing it, the buyer needs to call the seller directly
+ *  instead (see the shop/orders call-the-seller buttons). Restocks the same
+ *  way a seller rejection does - checkout already reduced stock for these
+ *  items via reduceStockForOrder, so leaving it cancelled without putting
+ *  it back would leak stock on every buyer cancellation. */
+export async function cancelOrder(order: Order) {
+  await restockForOrder(
+    order.items.map((it) => ({
+      productId: it.productId,
+      quantity: it.quantity,
+      optionName: it.optionName,
+    }))
+  );
+  return updateDoc(doc(db, "orders", order.id), {
+    status: "cancelled",
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /* ----------------------------- Manual settlement (admin) --------------------------- */
 //
 // Option A: fully manual settlement. Online (razorpay) orders collect 100%

@@ -266,9 +266,17 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.resource.data.sellerId))
                .data.societyId;
 
-      // Buyer (cancel) or seller (status) or admin.
+      // Buyer: only cancelling their own still-"placed" order, touching
+      // only status/updatedAt - was previously unrestricted (any field, any
+      // status, any time), which was never actually exercised since no
+      // client built a cancel action until now. Seller/admin: unrestricted,
+      // as before (status advance, reject + rejectionReason, etc).
       allow update: if isSignedIn() && (
-        resource.data.buyerId == request.auth.uid
+        (resource.data.buyerId == request.auth.uid
+          && resource.data.status == 'placed'
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'updatedAt']))
         || resource.data.sellerId == request.auth.uid
         || isAdmin()
       );

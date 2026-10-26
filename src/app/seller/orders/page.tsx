@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   watchOrdersBySeller,
   updateOrderStatus,
+  rejectOrder,
   restockForOrder,
   getUser,
 } from "@/lib/data";
@@ -22,6 +23,9 @@ function SellerOrders() {
   const [buyers, setBuyers] = useState<Record<string, AppUser>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<Order | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -48,6 +52,9 @@ function SellerOrders() {
       "In progress": list.filter((o) => o.status === "accepted"),
       Delivered: list.filter((o) => o.status === "delivered"),
       Rejected: list.filter((o) => o.status === "rejected"),
+      // Buyer backed out before the seller accepted - distinct from
+      // Rejected (seller declined) so it's clear whose call it was.
+      Cancelled: list.filter((o) => o.status === "cancelled"),
     };
   }, [orders]);
 
@@ -63,9 +70,15 @@ function SellerOrders() {
     }
   };
 
-  const reject = async (o: Order) => {
+  const confirmReject = async () => {
+    const o = rejecting;
+    if (!o) return;
+    if (!rejectReason.trim()) {
+      setRejectError("Enter a reason for the buyer before rejecting.");
+      return;
+    }
     setBusyId(o.id);
-    setError(null);
+    setRejectError(null);
     try {
       await restockForOrder(
         o.items.map((it) => ({
@@ -74,9 +87,11 @@ function SellerOrders() {
           optionName: it.optionName,
         }))
       );
-      await updateOrderStatus(o.id, "rejected");
+      await rejectOrder(o.id, rejectReason.trim());
+      setRejecting(null);
+      setRejectReason("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not reject the order.");
+      setRejectError(err instanceof Error ? err.message : "Could not reject the order.");
     } finally {
       setBusyId(null);
     }
@@ -118,6 +133,11 @@ function SellerOrders() {
                           </span>
                         </div>
                         <p className="text-sm text-muted">{o.societyName}</p>
+                        {o.status === "rejected" && o.rejectionReason && (
+                          <p className="text-xs text-muted mt-1">
+                            You rejected this: {o.rejectionReason}
+                          </p>
+                        )}
 
                         <ul className="text-sm text-muted mt-2">
                           {o.items.map((it, idx) => (
@@ -146,7 +166,11 @@ function SellerOrders() {
                               )}
                             {o.status === "placed" && (
                               <button
-                                onClick={() => reject(o)}
+                                onClick={() => {
+                                  setRejecting(o);
+                                  setRejectReason("");
+                                  setRejectError(null);
+                                }}
                                 disabled={busy}
                                 className="text-sm rounded-full border border-line px-4 py-1.5 hover:border-danger hover:text-danger transition-colors disabled:opacity-50"
                               >
@@ -171,6 +195,44 @@ function SellerOrders() {
               </div>
             )
           )}
+        </div>
+      )}
+
+      {rejecting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5">
+          <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-5">
+            <p className="font-medium text-lg">Reject this order?</p>
+            <p className="text-sm text-muted mt-1">
+              Tell the buyer why - they&rsquo;ll see this reason on their order.
+            </p>
+            <textarea
+              autoFocus
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Out of stock, shop closed today…"
+              rows={3}
+              className="w-full border border-line rounded-xl px-3 py-2 bg-surface text-ink text-sm mt-3"
+            />
+            {rejectError && <p className="text-sm text-danger mt-2">{rejectError}</p>}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={confirmReject}
+                disabled={busyId === rejecting.id}
+                className="flex-1 rounded-full bg-danger text-white px-4 py-2 text-sm font-medium hover:bg-danger/90 transition-colors disabled:opacity-60"
+              >
+                {busyId === rejecting.id ? "Rejecting…" : "Reject order"}
+              </button>
+              <button
+                onClick={() => {
+                  setRejecting(null);
+                  setRejectError(null);
+                }}
+                className="flex-1 rounded-full border border-line px-4 py-2 text-sm font-medium hover:border-ink/40"
+              >
+                Keep order
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

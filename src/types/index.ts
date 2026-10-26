@@ -8,8 +8,9 @@ export type SellerStatus =
   | "rejected"
   | "active"
   | "inactive";
-// Matches the mobile app: placed -> accepted -> delivered, or rejected.
-export type OrderStatus = "placed" | "accepted" | "delivered" | "rejected";
+// Matches the mobile app: placed -> accepted -> delivered, or rejected
+// (seller-declined) / cancelled (buyer-initiated, only while still "placed").
+export type OrderStatus = "placed" | "accepted" | "delivered" | "rejected" | "cancelled";
 export type PaymentMethod = "cod" | "razorpay";
 export type PaymentStatus = "pending" | "paid" | "failed";
 
@@ -173,6 +174,8 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   status: OrderStatus;
+  /** Set when status is "rejected" - why the seller declined the order. */
+  rejectionReason?: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   createdAt?: Date | null;
