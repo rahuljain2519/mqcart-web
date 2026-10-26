@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import RoleGuard from "@/components/RoleGuard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { useAuth } from "@/context/AuthContext";
 import {
   listUsersByRole,
   listAllSocieties,
@@ -26,6 +27,7 @@ function SellerRow({
   societies: Society[];
   onChanged: () => void;
 }) {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [shop, setShop] = useState<Shop | null | undefined>(undefined);
   const [role, setRole] = useState(user.role);
@@ -40,10 +42,10 @@ function SellerRow({
   }, [open, shop, user.uid]);
 
   const toggle = async () => {
-    if (!shop) return;
+    if (!shop || !profile) return;
     setBusy(true);
     try {
-      await toggleShopActive(shop.shopId, !shop.isActive);
+      await toggleShopActive(shop.shopId, !shop.isActive, profile.uid);
       setShop({ ...shop, isActive: !shop.isActive });
     } finally {
       setBusy(false);

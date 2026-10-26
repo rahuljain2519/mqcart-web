@@ -25,6 +25,7 @@ export default function NavBar() {
           { href: "/admin/settlements", label: "Settlements" },
           { href: "/admin/banners", label: "Banners" },
           { href: "/admin/reports", label: "Reports" },
+          { href: "/admin/activity", label: "Activity" },
         ]
       : profile?.role === "seller"
       ? [

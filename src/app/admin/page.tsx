@@ -54,6 +54,11 @@ function AdminOverview() {
           title="Reports"
           body="Export a full transaction CSV"
         />
+        <NavCard
+          href="/admin/activity"
+          title="Activity log"
+          body="Audit trail of orders, approvals & catalog changes"
+        />
       </div>
 
       <p className="text-sm text-muted mt-8">

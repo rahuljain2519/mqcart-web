@@ -1,5 +1,6 @@
 import {
   collection,
+  collectionGroup,
   doc,
   documentId,
   getDoc,
@@ -35,6 +36,7 @@ import type {
   SellerSubscription,
   DeliveryUnit,
   AnalyticsOverview,
+  ActivityLogEntry,
 } from "@/types";
 
 export function toMinutes(value: number, unit: DeliveryUnit): number {
@@ -1177,10 +1179,17 @@ export async function saveSellerDocumentUrl(
 
 export async function decideSellerApplication(
   uid: string,
-  decision: "approved" | "rejected"
+  decision: "approved" | "rejected",
+  decidedBy: string
 ) {
   // seller_applications is keyed by uid (see submitSellerApplication).
-  await updateDoc(doc(db, "seller_applications", uid), { status: decision });
+  // decidedBy: the activity-log Cloud Function trigger on this collection
+  // reads it to attribute the decision to the admin who made it - a plain
+  // Firestore trigger has no request.auth of its own to fall back on.
+  await updateDoc(doc(db, "seller_applications", uid), {
+    status: decision,
+    decidedBy,
+  });
 
   // Mirror the mobile app's approveSeller/rejectSeller exactly so the shared
   // mobile onboarding flow still works: approval must land on sellerStatus
@@ -1344,12 +1353,20 @@ export async function syncShopSocietyToSeller(sellerId: string, societyId: strin
 }
 
 /** Toggle a shop active/inactive and cascade to all its products (admin). */
-export async function toggleShopActive(shopId: string, makeActive: boolean) {
+export async function toggleShopActive(
+  shopId: string,
+  makeActive: boolean,
+  toggledBy: string
+) {
   const batch = writeBatch(db);
   batch.update(doc(db, "shops", shopId), {
     isActive: makeActive,
     activationStatus: makeActive ? "active" : "inactive",
     updatedAt: serverTimestamp(),
+    // Read by the activity-log trigger on this collection to attribute the
+    // toggle to the admin who made it - this is admin-only today, but a
+    // plain Firestore write has no auth context of its own either way.
+    lastToggledBy: toggledBy,
   });
   const products = await getDocs(
     query(collection(db, "products"), where("shopId", "==", shopId))
@@ -1433,4 +1450,32 @@ export async function updateSellerRouteBankDetails(
   );
   const res = await fn({ uid });
   return res.data;
+}
+
+/* ----------------------------- Activity log (Phase 1, admin) --------------------------- */
+
+/** Admin-only: the N most recent entries across every user's activity
+ *  subcollection. Fetched via a single orderBy(createdAt desc) + limit -
+ *  no where() clauses, so date range / actor / action-type filters are
+ *  applied client-side instead, same reasoning as the transaction report
+ *  (avoids composite-index requirements for every filter combination,
+ *  fine for an admin tool over a modest dataset). */
+export async function listRecentActivity(
+  take: number = 500
+): Promise<ActivityLogEntry[]> {
+  const snap = await getDocs(
+    query(collectionGroup(db, "activity"), orderBy("createdAt", "desc"), fsLimit(take))
+  );
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      actorId: d.ref.parent.parent?.id ?? "",
+      action: data.action ?? "",
+      targetType: data.targetType ?? "",
+      targetId: data.targetId ?? "",
+      metadata: data.metadata ?? {},
+      createdAt: toDate(data.createdAt),
+    };
+  });
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import RoleGuard from "@/components/RoleGuard";
+import { useAuth } from "@/context/AuthContext";
 import { watchSellerApplications, decideSellerApplication } from "@/lib/data";
 import type { SellerApplication } from "@/types";
 
@@ -16,6 +17,7 @@ function Row({ label, value }: { label: string; value?: string }) {
 }
 
 function SellerApplications() {
+  const { profile } = useAuth();
   const [apps, setApps] = useState<SellerApplication[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -25,9 +27,10 @@ function SellerApplications() {
   }, []);
 
   const decide = async (uid: string, decision: "approved" | "rejected") => {
+    if (!profile) return;
     setBusy(uid);
     try {
-      await decideSellerApplication(uid, decision);
+      await decideSellerApplication(uid, decision, profile.uid);
       // list updates itself via the snapshot listener
     } finally {
       setBusy(null);

@@ -111,6 +111,20 @@ service cloud.firestore {
     }
 
     /* =========================================================
+       📋 ACTIVITY LOG (Phase 1) — audit trail of meaningful actions,
+       one doc per event at users/{uid}/activity/{logId}. A user can see
+       their own trail, admin can see everyone's. Write-only via Cloud
+       Function triggers (Admin SDK bypasses rules) - no client, including
+       the account owner, can create or alter an entry. See
+       functions/activityLog.js for what gets logged and why.
+       ========================================================= */
+
+    match /users/{userId}/activity/{logId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if false;
+    }
+
+    /* =========================================================
        🏘 SOCIETIES (PUBLIC READ, ADMIN WRITE)
        ========================================================= */
 
