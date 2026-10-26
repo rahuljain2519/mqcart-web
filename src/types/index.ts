@@ -232,3 +232,18 @@ export interface AnalyticsOverview {
   activeSellers?: number;
   activeBuyers?: number;
 }
+
+/** One entry from a user's users/{uid}/activity subcollection - see
+ *  functions/activityLog.js for what gets logged and why. Admin-only to
+ *  view across users; a user can see their own. */
+export interface ActivityLogEntry {
+  id: string;
+  /** Whose activity subcollection this lives in - the actor, i.e. whoever
+   *  performed the action (derived from the document's parent path). */
+  actorId: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata: Record<string, unknown>;
+  createdAt: Date | null;
+}
