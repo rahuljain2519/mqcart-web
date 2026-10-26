@@ -58,21 +58,6 @@
       "density": "SPARSE_ALL"
     },
     {
-      "collectionGroup": "activity",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "DESCENDING"
-        }
-      ],
-      "density": "SPARSE_ALL"
-    },
-    {
       "collectionGroup": "products",
       "queryScope": "COLLECTION",
       "fields": [
@@ -96,5 +81,16 @@
       "density": "SPARSE_ALL"
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "activity",
+      "fieldPath": "createdAt",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }
