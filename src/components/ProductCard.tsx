@@ -80,20 +80,36 @@ export default function ProductCard({
           )}
 
           {variant ? (
-            <Link
-              href={`/product/${product.id}`}
-              className="text-sm rounded-full border border-accent text-accent-ink px-4 py-1 hover:bg-accent/5 transition-colors"
-            >
-              {outOfStock ? "Sold out" : "Options"}
-            </Link>
+            outOfStock ? (
+              // A faded version of the same orange "Options" pill read as
+              // nearly identical to the active state at a glance - sold-out
+              // now gets its own distinct neutral-grey treatment instead,
+              // same visual language as other "unavailable" states in the
+              // app (e.g. the admin settlement/toggle pills).
+              <span className="text-sm rounded-full bg-line text-ink/50 px-4 py-1 whitespace-nowrap cursor-not-allowed">
+                Sold out
+              </span>
+            ) : (
+              <Link
+                href={`/product/${product.id}`}
+                className="text-sm rounded-full border border-accent text-accent-ink px-4 py-1 hover:bg-accent/5 transition-colors"
+              >
+                Options
+              </Link>
+            )
           ) : qty === 0 ? (
-            <button
-              onClick={add}
-              disabled={outOfStock}
-              className="text-sm rounded-full border border-accent text-accent-ink px-4 py-1 hover:bg-accent/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {outOfStock ? "Sold out" : "Add"}
-            </button>
+            outOfStock ? (
+              <span className="text-sm rounded-full bg-line text-ink/50 px-4 py-1 whitespace-nowrap cursor-not-allowed">
+                Sold out
+              </span>
+            ) : (
+              <button
+                onClick={add}
+                className="text-sm rounded-full border border-accent text-accent-ink px-4 py-1 hover:bg-accent/5 transition-colors"
+              >
+                Add
+              </button>
+            )
           ) : (
             <div className="flex items-center gap-2">
               <button
