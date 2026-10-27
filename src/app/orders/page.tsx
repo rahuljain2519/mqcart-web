@@ -174,6 +174,22 @@ function OrderCard({ order, buyerName }: { order: Order; buyerName: string }) {
         </p>
       )}
 
+      {order.refundStatus === "initiated" && (
+        <p className="text-sm text-accent-ink bg-accent/10 rounded-xl px-3 py-2 mt-3">
+          Refund of ₹{order.totalAmount.toFixed(0)} initiated — it&rsquo;ll reach your payment method shortly.
+        </p>
+      )}
+      {order.refundStatus === "completed" && (
+        <p className="text-sm text-green bg-green-bg rounded-xl px-3 py-2 mt-3">
+          ₹{order.totalAmount.toFixed(0)} refunded{order.refundedAt ? ` on ${order.refundedAt.toLocaleDateString("en-IN")}` : ""}.
+        </p>
+      )}
+      {order.refundStatus === "failed" && (
+        <p className="text-sm text-danger bg-danger/10 rounded-xl px-3 py-2 mt-3">
+          Refund failed — please contact support for your ₹{order.totalAmount.toFixed(0)} refund.
+        </p>
+      )}
+
       <div className="text-sm text-muted mt-3">
         <p className="text-ink/80 font-medium">Flat {order.flatNumber}</p>
         <p>{order.societyName}</p>

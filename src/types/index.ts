@@ -206,6 +206,15 @@ export interface Order {
   deliveredAt?: Date | null;
   rejectedAt?: Date | null;
   cancelledAt?: Date | null;
+  /** Set server-side only (refundCancelledOrRejectedOrder trigger +
+   *  razorpayWebhook's refund.processed/failed branch) when a "razorpay"
+   *  order is cancelled/rejected after payment - never present on a "cod"
+   *  order, since there's nothing to refund. */
+  refundStatus?: "initiated" | "completed" | "failed";
+  razorpayRefundId?: string;
+  refundInitiatedAt?: Date | null;
+  refundedAt?: Date | null;
+  refundFailureReason?: string;
   /** Manual settlement (see Settlement below) — only meaningful for
    *  paymentMethod "razorpay" orders. COD orders are never settled through
    *  this mechanism since the seller already collected cash directly. */

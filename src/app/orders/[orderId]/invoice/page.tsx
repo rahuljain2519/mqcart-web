@@ -130,6 +130,13 @@ function Invoice() {
           {order.rejectedAt && <p>Rejected: {fmtDateTime(order.rejectedAt)}</p>}
           {order.cancelledAt && <p>Cancelled: {fmtDateTime(order.cancelledAt)}</p>}
           {order.rejectionReason && <p>Reason: {order.rejectionReason}</p>}
+          {order.refundStatus && (
+            <p>
+              Refund: {order.refundStatus === "completed" ? "Completed" : order.refundStatus === "failed" ? "Failed" : "Initiated"}
+              {order.refundedAt ? ` (${fmtDateTime(order.refundedAt)})` : ""}
+              {order.razorpayRefundId ? ` · ${order.razorpayRefundId}` : ""}
+            </p>
+          )}
         </div>
       </div>
     </div>

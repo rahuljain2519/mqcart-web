@@ -393,6 +393,8 @@ function mapOrder(s: { id: string; data: () => Record<string, unknown> }): Order
     deliveredAt: toDate(d.deliveredAt as Timestamp | Date | null | undefined),
     rejectedAt: toDate(d.rejectedAt as Timestamp | Date | null | undefined),
     cancelledAt: toDate(d.cancelledAt as Timestamp | Date | null | undefined),
+    refundInitiatedAt: toDate(d.refundInitiatedAt as Timestamp | Date | null | undefined),
+    refundedAt: toDate(d.refundedAt as Timestamp | Date | null | undefined),
   } as Order;
 }
 
