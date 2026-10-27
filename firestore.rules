@@ -162,7 +162,18 @@ service cloud.firestore {
 
     match /shops/{shopId} {
       allow read: if true;
-      allow write: if isSignedIn();
+
+      // Previously `write: if isSignedIn()` - any signed-in buyer could edit
+      // ANY seller's shop. Scoped to the owning seller or an admin; the two
+      // real client write paths are self-service (seller edits own shop,
+      // activates own plan) and syncShopSocietyToSeller's two call sites
+      // (seller's own profile edit, or an admin editing a seller's society) -
+      // both already fit "owner or admin", no other actor writes here.
+      allow create: if isSignedIn()
+        && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isSignedIn()
+        && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
 
     /* =========================================================
@@ -189,7 +200,24 @@ service cloud.firestore {
 
     match /products/{productId} {
       allow read: if true;
-      allow write: if isSignedIn();
+
+      // Previously `write: if isSignedIn()` - any signed-in buyer could edit
+      // ANY seller's product (price, stock, images, everything). Scoped to
+      // the owning seller or an admin, with one deliberate carve-out: a
+      // buyer's checkout/cancel stock transaction (applyStockDelta on both
+      // platforms) writes ONLY {quantity} or {quantity, options} - verified
+      // at every call site, never any other field - so that specific shape
+      // is allowed from any signed-in user without needing a Cloud Function.
+      allow create: if isSignedIn()
+        && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isSignedIn()
+        && (
+          resource.data.sellerId == request.auth.uid
+          || isAdmin()
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity', 'options'])
+        );
+      allow delete: if isSignedIn()
+        && (resource.data.sellerId == request.auth.uid || isAdmin());
     }
 
     /* ---------------------------
