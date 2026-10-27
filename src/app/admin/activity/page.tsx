@@ -17,6 +17,7 @@ const ACTION_LABELS: Record<string, string> = {
   "seller.bank_details_updated": "Bank details updated",
   "seller.deleted": "Seller account deleted",
   "seller.activation_payment_completed": "Seller plan payment completed",
+  "seller.plan_expired": "Seller plan expired",
   "product.added": "Product added",
   "product.edited": "Product edited",
   "product.deleted": "Product deleted",
@@ -33,6 +34,7 @@ const ACTION_COLORS: Record<string, string> = {
   "seller.rejected": "bg-danger/10 text-danger",
   "seller.deleted": "bg-danger/10 text-danger",
   "shop.deactivated": "bg-danger/10 text-danger",
+  "seller.plan_expired": "bg-danger/10 text-danger",
   "seller.approved": "bg-green-bg text-green",
   "order.delivered": "bg-green-bg text-green",
   "settlement.marked_paid": "bg-green-bg text-green",
@@ -64,6 +66,7 @@ function describe(entry: ActivityLogEntry): string {
     case "settlement.marked_paid":
       return m.totalAmount ? `₹${m.totalAmount}` : "";
     case "seller.activation_payment_completed":
+    case "seller.plan_expired":
       return (m.plan as string) || "";
     case "profile.address_changed":
       return (m.societyId as string) ? `society: ${m.societyId}` : "";

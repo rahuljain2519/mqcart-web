@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
 import { auth } from "@/lib/firebase";
 import {
@@ -15,9 +16,17 @@ import {
   createActivationPayment,
   createSellerRazorpayOrder,
   markActivationPaymentFailed,
+  FREE_PLAN_CUTOFF,
+  isFreePlanWindowClosed,
 } from "@/lib/data";
 import { openRazorpayCheckout } from "@/lib/razorpay";
 import type { Shop, SellerPlan } from "@/types";
+
+const FREE_PLAN_CUTOFF_LABEL = FREE_PLAN_CUTOFF.toLocaleDateString("en-IN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 function Activate() {
   const { profile } = useAuth();
@@ -30,8 +39,10 @@ function Activate() {
   const [processing, setProcessing] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingFree, setConfirmingFree] = useState(false);
   const paymentDocId = useRef<string | null>(null);
   const enforced = useRef(false);
+  const freeWindowClosed = isFreePlanWindowClosed();
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -66,27 +77,48 @@ function Activate() {
     return () => unsub();
   }, [shop?.shopId, waiting, router]);
 
+  const doActivateFree = async (plan: SellerPlan) => {
+    if (!shop || !profile) return;
+    setError(null);
+    setProcessing(true);
+    try {
+      await activateFreePlan({
+        sellerId: profile.uid,
+        shopId: shop.shopId,
+        plan,
+      });
+      router.replace("/seller");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not activate the free plan.");
+    } finally {
+      setProcessing(false);
+      setConfirmingFree(false);
+    }
+  };
+
   const proceed = async () => {
     if (!shop || !profile || !selected) return;
     const plan = plans.find((p) => p.key === selected);
     if (!plan) return;
+
+    if (plan.monthlyFee === 0) {
+      if (freeUsed) {
+        setError("You've already used the free plan. Pick a paid plan.");
+        return;
+      }
+      if (freeWindowClosed) {
+        setError(`The free plan ended on ${FREE_PLAN_CUTOFF_LABEL}. Pick a paid plan.`);
+        return;
+      }
+      // Notify the seller up front, before activating, that the free
+      // plan isn't permanent.
+      setConfirmingFree(true);
+      return;
+    }
+
     setError(null);
     setProcessing(true);
     try {
-      if (plan.monthlyFee === 0) {
-        if (freeUsed) {
-          setError("You've already used the free plan. Pick a paid plan.");
-          return;
-        }
-        await activateFreePlan({
-          sellerId: profile.uid,
-          shopId: shop.shopId,
-          plan,
-        });
-        router.replace("/seller");
-        return;
-      }
-
       // Paid: create the payment record, get a Razorpay order, open checkout.
       paymentDocId.current = await createActivationPayment({
         sellerId: profile.uid,
@@ -138,7 +170,8 @@ function Activate() {
 
       <div className="space-y-3">
         {plans.map((p) => {
-          const disabled = p.monthlyFee === 0 && freeUsed;
+          const isFree = p.monthlyFee === 0;
+          const disabled = isFree && (freeUsed || freeWindowClosed);
           const isCurrent = shop.plan === p.key && shop.isActive;
           return (
             <button
@@ -158,11 +191,21 @@ function Activate() {
                 )}
               </div>
               <p className="text-sm mt-1">
-                {p.monthlyFee === 0 ? "Free" : `₹${p.monthlyFee} / month`}
+                {isFree ? "Free" : `₹${p.monthlyFee} / month`}
               </p>
               <p className="text-sm text-muted">Up to {p.productLimit} products</p>
-              {disabled && (
+              {isFree && freeUsed && (
                 <p className="text-xs text-danger mt-1">Free plan already used</p>
+              )}
+              {isFree && !freeUsed && freeWindowClosed && (
+                <p className="text-xs text-danger mt-1">
+                  Free plan ended {FREE_PLAN_CUTOFF_LABEL}
+                </p>
+              )}
+              {isFree && !freeUsed && !freeWindowClosed && (
+                <p className="text-xs text-muted mt-1">
+                  Free until {FREE_PLAN_CUTOFF_LABEL}
+                </p>
               )}
             </button>
           );
@@ -183,6 +226,18 @@ function Activate() {
       >
         {processing ? "Please wait…" : "Continue"}
       </button>
+
+      <ConfirmDialog
+        open={confirmingFree}
+        title="Activate free plan?"
+        message={`Your shop will go live on the free plan until ${FREE_PLAN_CUTOFF_LABEL}. After that date you'll need to choose a paid plan to stay visible to buyers — your products won't be deleted, just hidden until you do.`}
+        confirmLabel={processing ? "Activating…" : "Activate"}
+        onCancel={() => setConfirmingFree(false)}
+        onConfirm={() => {
+          const plan = plans.find((p) => p.key === selected);
+          if (plan) doActivateFree(plan);
+        }}
+      />
     </div>
   );
 }

@@ -182,6 +182,19 @@ export async function linkShopToUser(uid: string, shopId: string) {
 
 /* ---------------------------- Seller plans / activation -------------------- */
 
+/** The free plan expires for every seller on this one fixed calendar date,
+ *  not N days after each seller's own activation - everyone hits the same
+ *  cutoff together. Deliberately not stored in platform_config: this is a
+ *  one-time business decision, not an ongoing plan parameter. Mirrored
+ *  (duplicated, no shared module between repos) in mqcart-mobile's
+ *  lib/config/plan_config.dart and functions/planExpiry.js - keep all
+ *  three in sync if this date ever changes. */
+export const FREE_PLAN_CUTOFF = new Date("2027-03-31T00:00:00+05:30");
+
+export function isFreePlanWindowClosed(): boolean {
+  return Date.now() >= FREE_PLAN_CUTOFF.getTime();
+}
+
 export async function getSellerPlans(): Promise<SellerPlan[]> {
   const snap = await getDoc(doc(db, "platform_config", "seller_plans"));
   if (!snap.exists()) return [];
@@ -260,11 +273,9 @@ export async function activateFreePlan(input: {
   shopId: string;
   plan: SellerPlan;
 }) {
-  const expiresAt = input.plan.validityDays
-    ? Timestamp.fromDate(
-        new Date(Date.now() + input.plan.validityDays * 86400000)
-      )
-    : null;
+  // Fixed calendar cutoff shared by every free-plan seller - replaces the
+  // old validityDays-based per-seller calculation (see FREE_PLAN_CUTOFF).
+  const expiresAt = Timestamp.fromDate(FREE_PLAN_CUTOFF);
 
   await setDoc(
     doc(db, "seller_subscriptions", input.sellerId),

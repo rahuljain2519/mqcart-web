@@ -10,15 +10,17 @@ import {
   getShopBySeller,
   watchShopById,
   watchOrdersBySeller,
+  getSellerSubscription,
 } from "@/lib/data";
 import { registerSellerPush } from "@/lib/push";
-import type { Shop, Order } from "@/types";
+import type { Shop, Order, SellerSubscription } from "@/types";
 
 function SellerDashboard() {
   const { profile, refreshProfile } = useAuth();
   const router = useRouter();
   const [shop, setShop] = useState<Shop | null | undefined>(undefined); // undefined = loading
   const [orders, setOrders] = useState<Order[]>([]);
+  const [subscription, setSubscription] = useState<SellerSubscription | null>(null);
 
   // Resolve the shop: prefer the linked id, fall back to a lookup by seller.
   useEffect(() => {
@@ -44,6 +46,11 @@ function SellerDashboard() {
     const unsub = watchOrdersBySeller(profile.uid, setOrders);
     return () => unsub();
   }, [profile?.uid]);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    getSellerSubscription(profile.uid).then(setSubscription);
+  }, [profile?.uid, shop?.isActive]);
 
   // Ask for new-order push once we know this is a seller with a shop.
   useEffect(() => {
@@ -98,9 +105,16 @@ function SellerDashboard() {
 
       {!shop.isActive && (
         <div className="border border-danger/30 bg-danger/5 rounded-2xl p-5 mb-8">
-          <p className="font-medium text-danger">Your shop is inactive</p>
+          <p className="font-medium text-danger">
+            {shop.planStatus === "expired" ? "Your plan expired" : "Your shop is inactive"}
+          </p>
           <p className="text-sm text-ink/70 mt-1">
-            Pick a plan to start receiving orders.
+            {shop.planStatus === "expired"
+              ? "Your products are hidden from buyers, not deleted. Choose a plan to go live again."
+              : "Pick a plan to start receiving orders."}
+            {subscription?.expiresAt && shop.planStatus === "expired" && (
+              <> (expired {subscription.expiresAt.toLocaleDateString("en-IN")})</>
+            )}
           </p>
           <Link
             href="/seller/activate"
