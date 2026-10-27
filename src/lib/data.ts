@@ -37,6 +37,7 @@ import type {
   DeliveryUnit,
   AnalyticsOverview,
   ActivityLogEntry,
+  Review,
 } from "@/types";
 
 export function toMinutes(value: number, unit: DeliveryUnit): number {
@@ -147,7 +148,11 @@ export async function createShop(input: {
     transactionFeePercent: 0,
     isActive: false,
     activationStatus: "pending",
-    isVerified: false,
+    // Reaching shop creation at all requires sellerStatus === "approved"
+    // (enforced by firestore.rules' shopIdSafe()) - i.e. an admin already
+    // approved this seller's KYC. So "verified" is simply true here, not a
+    // separate review step.
+    isVerified: true,
     deliveryUnit: input.deliveryUnit,
     deliveryMinValue: input.deliveryMinValue,
     deliveryMaxValue: input.deliveryMaxValue,
@@ -821,6 +826,81 @@ export async function cancelOrder(order: Order) {
   return updateDoc(doc(db, "orders", order.id), {
     status: "cancelled",
     updatedAt: serverTimestamp(),
+  });
+}
+
+/* ----------------------------------- Reviews ---------------------------------- */
+
+/** Buyer rates one product from a delivered order. Doc ID is deterministic
+ *  (`${orderId}_${productId}`) so a repeat call for the same order+product
+ *  fails as a duplicate create instead of overwriting - no "already
+ *  reviewed?" query needed before showing the rate button, just attempt the
+ *  write and treat failure as "already rated". firestore.rules additionally
+ *  requires the order to belong to this buyer and be "delivered". */
+export async function submitReview(input: {
+  orderId: string;
+  productId: string;
+  shopId: string;
+  sellerId: string;
+  buyerId: string;
+  buyerName: string;
+  rating: number;
+  comment?: string;
+}): Promise<void> {
+  const id = `${input.orderId}_${input.productId}`;
+  await setDoc(doc(db, "reviews", id), {
+    ...input,
+    createdAt: serverTimestamp(),
+  });
+}
+
+/** Has this buyer already rated this product from this order? Used to show
+ *  "Rated" instead of a rate button, not to gate the write itself. */
+export async function getReview(orderId: string, productId: string): Promise<Review | null> {
+  const snap = await getDoc(doc(db, "reviews", `${orderId}_${productId}`));
+  if (!snap.exists()) return null;
+  const d = snap.data();
+  return {
+    id: snap.id,
+    orderId: d.orderId,
+    productId: d.productId,
+    shopId: d.shopId,
+    sellerId: d.sellerId,
+    buyerId: d.buyerId,
+    buyerName: d.buyerName ?? "",
+    rating: d.rating ?? 0,
+    comment: d.comment ?? undefined,
+    createdAt: toDate(d.createdAt),
+  };
+}
+
+export function watchReviewsForProduct(
+  productId: string,
+  cb: (reviews: Review[]) => void
+) {
+  const q = query(
+    collection(db, "reviews"),
+    where("productId", "==", productId),
+    orderBy("createdAt", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    cb(
+      snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          orderId: data.orderId,
+          productId: data.productId,
+          shopId: data.shopId,
+          sellerId: data.sellerId,
+          buyerId: data.buyerId,
+          buyerName: data.buyerName ?? "",
+          rating: data.rating ?? 0,
+          comment: data.comment ?? undefined,
+          createdAt: toDate(data.createdAt),
+        };
+      })
+    );
   });
 }
 

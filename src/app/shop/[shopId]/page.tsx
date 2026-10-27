@@ -11,6 +11,8 @@ import { watchShopById, watchProductsByShop, getUser } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CartBar from "@/components/CartBar";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import { RatingSummary } from "@/components/StarRating";
 import { CATEGORIES, CATEGORY_EMOJI, matchesCategory } from "@/lib/categories";
 import type { Shop, Product } from "@/types";
 
@@ -129,10 +131,14 @@ function ShopDetail() {
               ) : null}
             </div>
             <div>
-              <h1 className="font-display text-3xl">{shop.shopName}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-3xl">{shop.shopName}</h1>
+                {shop.isVerified && <VerifiedBadge />}
+              </div>
               {shop.description && (
                 <p className="text-muted text-sm mt-1">{shop.description}</p>
               )}
+              <RatingSummary ratingSum={shop.ratingSum} reviewCount={shop.reviewCount} />
               <p className="text-xs text-muted mt-1">
                 Delivery in {shop.deliveryMinValue}–{shop.deliveryMaxValue} {shop.deliveryUnit}
               </p>

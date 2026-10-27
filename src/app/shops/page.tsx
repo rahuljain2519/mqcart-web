@@ -9,6 +9,7 @@ import { watchShopsBySociety } from "@/lib/data";
 import CartBar from "@/components/CartBar";
 import AddressBar from "@/components/AddressBar";
 import { Skeleton } from "@/components/Skeleton";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import type { Shop } from "@/types";
 
 function ShopsList() {
@@ -95,7 +96,10 @@ function ShopsList() {
                       ) : null}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{shop.shopName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium truncate">{shop.shopName}</p>
+                        {shop.isVerified && <VerifiedBadge />}
+                      </div>
                       <p className="text-sm text-muted line-clamp-2">
                         {shop.description || "Local society shop"}
                       </p>

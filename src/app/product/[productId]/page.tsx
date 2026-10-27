@@ -6,6 +6,8 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import ProductReviews from "@/components/ProductReviews";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { watchProduct, watchShopById } from "@/lib/data";
@@ -116,12 +118,15 @@ function ProductDetail() {
 
         <div>
           {shop && (
-            <Link
-              href={`/shop/${shop.shopId}`}
-              className="text-sm text-muted hover:text-ink underline underline-offset-4"
-            >
-              {shop.shopName}
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/shop/${shop.shopId}`}
+                className="text-sm text-muted hover:text-ink underline underline-offset-4"
+              >
+                {shop.shopName}
+              </Link>
+              {shop.isVerified && <VerifiedBadge />}
+            </div>
           )}
           <h1 className="font-display text-3xl mt-1">{product.name}</h1>
           {(product.brand || packSizeLabel(product)) && (
@@ -211,6 +216,8 @@ function ProductDetail() {
               </div>
             )}
           </div>
+
+          <ProductReviews product={product} />
         </div>
       </div>
 

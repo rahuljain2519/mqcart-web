@@ -58,7 +58,15 @@ export interface Shop {
   productCount: number;
   transactionFeePercent: number;
   isActive: boolean;
+  /** True iff an admin approved the owning seller's application - shop
+   *  creation only happens after that approval, so this is always true for
+   *  any shop that exists (see createShop). Shown as a buyer-facing badge. */
   isVerified: boolean;
+  /** Sum/count of all review ratings across this shop's products - kept in
+   *  sync by the onReviewCreated Cloud Function trigger. Divide to get the
+   *  average; absent on shops created before this feature. */
+  ratingSum?: number;
+  reviewCount?: number;
   deliveryUnit: DeliveryUnit;
   deliveryMinValue: number;
   deliveryMaxValue: number;
@@ -117,6 +125,11 @@ export interface Product {
   // `price` = cheapest option, root `quantity` = sum of option quantities.
   optionLabel?: string; // "Weight" | "Size" | "Colour" | custom
   options?: ProductOption[];
+  /** Sum/count of all review ratings on this product - kept in sync by the
+   *  onReviewCreated Cloud Function trigger. Divide to get the average;
+   *  absent on products with no reviews yet. */
+  ratingSum?: number;
+  reviewCount?: number;
 }
 
 /** Composite cart-line / order-item key: productId, plus option name when set. */
@@ -246,4 +259,23 @@ export interface ActivityLogEntry {
   targetId: string;
   metadata: Record<string, unknown>;
   createdAt: Date | null;
+}
+
+/** One buyer's rating of one product. Doc ID is deterministic
+ *  (`${orderId}_${productId}`) so a second write for the same order+product
+ *  simply fails as a duplicate create - no existence query needed, and
+ *  firestore.rules requires the order to belong to this buyer and be
+ *  "delivered", so a review can't be left without a real purchase. */
+export interface Review {
+  id: string;
+  orderId: string;
+  productId: string;
+  shopId: string;
+  sellerId: string;
+  buyerId: string;
+  /** Snapshot at review time - avoids an extra read to show "who said this". */
+  buyerName: string;
+  rating: number; // 1-5
+  comment?: string;
+  createdAt?: Date | null;
 }

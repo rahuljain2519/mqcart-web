@@ -7,6 +7,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
 import { watchOrdersByBuyer, getUser, cancelOrder } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
+import RateProductDialog from "@/components/RateProductDialog";
 import type { Order, OrderStatus } from "@/types";
 
 const CHIP: Record<OrderStatus, string> = {
@@ -26,31 +27,56 @@ const LABEL: Record<OrderStatus, string> = {
 };
 
 const STEPS: OrderStatus[] = ["placed", "accepted", "delivered"];
+const STEP_LABELS = ["Placed", "Accepted", "Delivered"];
 
 function Timeline({ status }: { status: OrderStatus }) {
-  if (status === "rejected" || status === "cancelled") return null;
+  // Terminal, non-progressing states get their own single marker instead of
+  // the 3-step tracker (which previously rendered nothing at all for these,
+  // leaving the buyer with no visual status).
+  if (status === "rejected" || status === "cancelled") {
+    const label = status === "rejected" ? "Order rejected" : "Order cancelled";
+    const dot = status === "rejected" ? "bg-danger" : "bg-ink/40";
+    return (
+      <div className="flex items-center gap-2 mt-3">
+        <div className={`w-2.5 h-2.5 rounded-full ${dot}`} />
+        <span className="text-xs text-ink/60">{label}</span>
+      </div>
+    );
+  }
   const activeIdx = STEPS.indexOf(status);
   return (
-    <div className="flex items-center mt-3">
-      {STEPS.map((s, i) => (
-        <div key={s} className="flex items-center flex-1 last:flex-none">
-          <div
-            className={`w-2.5 h-2.5 rounded-full ${
-              i <= activeIdx ? "bg-accent" : "bg-line"
-            }`}
-          />
-          {i < STEPS.length - 1 && (
+    <div className="mt-3">
+      <div className="flex items-center">
+        {STEPS.map((s, i) => (
+          <div key={s} className="flex items-center flex-1 last:flex-none">
             <div
-              className={`flex-1 h-0.5 ${i < activeIdx ? "bg-accent" : "bg-line"}`}
+              className={`w-2.5 h-2.5 rounded-full ${
+                i <= activeIdx ? "bg-accent" : "bg-line"
+              }`}
             />
-          )}
-        </div>
-      ))}
+            {i < STEPS.length - 1 && (
+              <div
+                className={`flex-1 h-0.5 ${i < activeIdx ? "bg-accent" : "bg-line"}`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between mt-1">
+        {STEP_LABELS.map((label, i) => (
+          <span
+            key={label}
+            className={`text-[11px] ${i <= activeIdx ? "text-ink/80 font-medium" : "text-ink/40"}`}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({ order, buyerName }: { order: Order; buyerName: string }) {
   // shopPhone was never actually collected anywhere in shop creation/edit
   // (no phone field exists on ShopForm) - every historical order has it
   // empty. Fall back to the seller's own account phone, which is always
@@ -149,15 +175,20 @@ function OrderCard({ order }: { order: Order }) {
 
       <ul className="text-sm mt-3 divide-y divide-line border-t border-line">
         {order.items.map((it, idx) => (
-          <li key={idx} className="py-2 flex items-center justify-between">
+          <li key={idx} className="py-2 flex items-center justify-between gap-2">
             <Link
               href={`/product/${it.productId}`}
-              className="hover:underline text-ink/80"
+              className="hover:underline text-ink/80 min-w-0 truncate"
             >
               {it.name}
               {it.optionName ? ` (${it.optionName})` : ""} × {it.quantity}
             </Link>
-            <span className="text-muted">₹{(it.price * it.quantity).toFixed(0)}</span>
+            <span className="flex items-center gap-2 shrink-0">
+              <span className="text-muted">₹{(it.price * it.quantity).toFixed(0)}</span>
+              {order.status === "delivered" && (
+                <RateProductDialog order={order} item={it} buyerName={buyerName} />
+              )}
+            </span>
           </li>
         ))}
       </ul>
@@ -182,6 +213,7 @@ function OrdersView() {
     return () => unsub();
   }, [profile?.uid]);
 
+  const buyerName = profile?.name ?? "Buyer";
   const active = orders?.filter((o) => o.status === "placed" || o.status === "accepted") ?? [];
   const delivered = orders?.filter((o) => o.status === "delivered") ?? [];
   const rejected = orders?.filter((o) => o.status === "rejected") ?? [];
@@ -206,28 +238,28 @@ function OrdersView() {
           {active.length > 0 && (
             <Section title="Active">
               {active.map((o) => (
-                <OrderCard key={o.id} order={o} />
+                <OrderCard key={o.id} order={o} buyerName={buyerName} />
               ))}
             </Section>
           )}
           {delivered.length > 0 && (
             <Section title="Delivered">
               {delivered.map((o) => (
-                <OrderCard key={o.id} order={o} />
+                <OrderCard key={o.id} order={o} buyerName={buyerName} />
               ))}
             </Section>
           )}
           {rejected.length > 0 && (
             <Section title="Rejected">
               {rejected.map((o) => (
-                <OrderCard key={o.id} order={o} />
+                <OrderCard key={o.id} order={o} buyerName={buyerName} />
               ))}
             </Section>
           )}
           {cancelled.length > 0 && (
             <Section title="Cancelled">
               {cancelled.map((o) => (
-                <OrderCard key={o.id} order={o} />
+                <OrderCard key={o.id} order={o} buyerName={buyerName} />
               ))}
             </Section>
           )}

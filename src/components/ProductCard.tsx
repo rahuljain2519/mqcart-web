@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { hasOptions, priceLabel, stockFor, hasDiscount, discountPercent, packSizeLabel } from "@/lib/product";
+import { RatingSummary } from "@/components/StarRating";
 import type { Product } from "@/types";
 
 export default function ProductCard({
@@ -68,6 +69,7 @@ export default function ProductCard({
             {[product.brand, packSizeLabel(product)].filter(Boolean).join(" · ")}
           </p>
         )}
+        <RatingSummary ratingSum={product.ratingSum} reviewCount={product.reviewCount} />
         <div className="mt-auto flex items-center justify-between pt-2">
           {hasDiscount(product) ? (
             <span className="flex items-baseline gap-1.5">
