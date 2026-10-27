@@ -290,7 +290,7 @@ service cloud.firestore {
           && resource.data.status == 'placed'
           && request.resource.data.status == 'cancelled'
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['status', 'updatedAt']))
+               .hasOnly(['status', 'updatedAt', 'cancelledAt']))
         || resource.data.sellerId == request.auth.uid
         || isAdmin()
       );

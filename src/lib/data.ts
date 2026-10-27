@@ -380,6 +380,22 @@ export async function getProduct(productId: string): Promise<Product | null> {
 const mapProducts = (docs: { id: string; data: () => unknown }[]): Product[] =>
   docs.map((s) => ({ id: s.id, ...(s.data() as Omit<Product, "id">) }));
 
+/** Shared by every order read path - converts every Timestamp field,
+ *  including the per-status ones, to Date so Order's type is honest. */
+function mapOrder(s: { id: string; data: () => Record<string, unknown> }): Order {
+  const d = s.data();
+  return {
+    id: s.id,
+    ...d,
+    createdAt: toDate(d.createdAt as Timestamp | Date | null | undefined),
+    updatedAt: toDate(d.updatedAt as Timestamp | Date | null | undefined),
+    acceptedAt: toDate(d.acceptedAt as Timestamp | Date | null | undefined),
+    deliveredAt: toDate(d.deliveredAt as Timestamp | Date | null | undefined),
+    rejectedAt: toDate(d.rejectedAt as Timestamp | Date | null | undefined),
+    cancelledAt: toDate(d.cancelledAt as Timestamp | Date | null | undefined),
+  } as Order;
+}
+
 const mapShops = (docs: { id: string; data: () => unknown }[]): Shop[] =>
   docs.map((s) => ({ shopId: s.id, ...(s.data() as Omit<Shop, "shopId">) }));
 
@@ -465,19 +481,7 @@ export function watchOrdersByBuyer(
     where("buyerId", "==", buyerId),
     orderBy("createdAt", "desc")
   );
-  return onSnapshot(q, (snap) =>
-    cb(
-      snap.docs.map((s) => {
-        const d = s.data();
-        return {
-          id: s.id,
-          ...d,
-          createdAt: toDate(d.createdAt),
-          updatedAt: toDate(d.updatedAt),
-        } as Order;
-      })
-    )
-  );
+  return onSnapshot(q, (snap) => cb(snap.docs.map(mapOrder)));
 }
 
 export async function addProduct(product: Omit<Product, "id">) {
@@ -637,13 +641,7 @@ export function watchOrder(orderId: string, cb: (order: Order | null) => void) {
       cb(null);
       return;
     }
-    const d = snap.data();
-    cb({
-      id: snap.id,
-      ...d,
-      createdAt: toDate(d.createdAt),
-      updatedAt: toDate(d.updatedAt),
-    } as Order);
+    cb(mapOrder(snap));
   });
 }
 
@@ -749,15 +747,7 @@ export async function listOrdersByBuyer(buyerId: string): Promise<Order[]> {
       orderBy("createdAt", "desc")
     )
   );
-  return snap.docs.map((s) => {
-    const d = s.data();
-    return {
-      id: s.id,
-      ...d,
-      createdAt: toDate(d.createdAt),
-      updatedAt: toDate(d.updatedAt),
-    } as Order;
-  });
+  return snap.docs.map(mapOrder);
 }
 
 export async function listOrdersBySeller(sellerId: string): Promise<Order[]> {
@@ -768,15 +758,7 @@ export async function listOrdersBySeller(sellerId: string): Promise<Order[]> {
       orderBy("createdAt", "desc")
     )
   );
-  return snap.docs.map((s) => {
-    const d = s.data();
-    return {
-      id: s.id,
-      ...d,
-      createdAt: toDate(d.createdAt),
-      updatedAt: toDate(d.updatedAt),
-    } as Order;
-  });
+  return snap.docs.map(mapOrder);
 }
 
 export function watchOrdersBySeller(
@@ -788,25 +770,24 @@ export function watchOrdersBySeller(
     where("sellerId", "==", sellerId),
     orderBy("createdAt", "desc")
   );
-  return onSnapshot(q, (snap) => {
-    cb(
-      snap.docs.map((s) => {
-        const d = s.data();
-        return {
-          id: s.id,
-          ...d,
-          createdAt: toDate(d.createdAt),
-          updatedAt: toDate(d.updatedAt),
-        } as Order;
-      })
-    );
-  });
+  return onSnapshot(q, (snap) => cb(snap.docs.map(mapOrder)));
 }
 
+/** Field written once, the first time an order reaches that status - see
+ *  Order.acceptedAt/deliveredAt in src/types/index.ts. "rejected" and
+ *  "cancelled" aren't here because they go through their own dedicated
+ *  functions (rejectOrder/cancelOrder) below, never through this one. */
+const STATUS_TIMESTAMP_FIELD: Partial<Record<Order["status"], string>> = {
+  accepted: "acceptedAt",
+  delivered: "deliveredAt",
+};
+
 export async function updateOrderStatus(orderId: string, status: Order["status"]) {
+  const field = STATUS_TIMESTAMP_FIELD[status];
   return updateDoc(doc(db, "orders", orderId), {
     status,
     updatedAt: serverTimestamp(),
+    ...(field ? { [field]: serverTimestamp() } : {}),
   });
 }
 
@@ -816,6 +797,7 @@ export async function rejectOrder(orderId: string, reason: string) {
     status: "rejected",
     rejectionReason: reason,
     updatedAt: serverTimestamp(),
+    rejectedAt: serverTimestamp(),
   });
 }
 
@@ -837,6 +819,7 @@ export async function cancelOrder(order: Order) {
   return updateDoc(doc(db, "orders", order.id), {
     status: "cancelled",
     updatedAt: serverTimestamp(),
+    cancelledAt: serverTimestamp(),
   });
 }
 

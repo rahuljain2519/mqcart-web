@@ -191,8 +191,21 @@ export interface Order {
   rejectionReason?: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  /** Set for "razorpay" orders once the webhook confirms payment - absent
+   *  for "cod". Denormalized onto the order itself (not just the backing
+   *  buyer_order_payments doc) so support/refund disputes don't need to
+   *  cross-reference two collections. */
+  razorpayPaymentId?: string;
   createdAt?: Date | null;
   updatedAt?: Date | null;
+  /** Per-status timestamps - set once, the first time each transition
+   *  happens. Only the one matching the order's current status is ever
+   *  populated for a given terminal state (delivered orders won't have
+   *  rejectedAt, etc). */
+  acceptedAt?: Date | null;
+  deliveredAt?: Date | null;
+  rejectedAt?: Date | null;
+  cancelledAt?: Date | null;
   /** Manual settlement (see Settlement below) — only meaningful for
    *  paymentMethod "razorpay" orders. COD orders are never settled through
    *  this mechanism since the seller already collected cash directly. */

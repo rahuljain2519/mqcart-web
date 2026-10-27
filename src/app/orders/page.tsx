@@ -5,7 +5,9 @@ import Link from "next/link";
 import RoleGuard from "@/components/RoleGuard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
-import { watchOrdersByBuyer, getUser, cancelOrder } from "@/lib/data";
+import { useCart } from "@/context/CartContext";
+import { watchOrdersByBuyer, getUser, cancelOrder, getProduct } from "@/lib/data";
+import { stockFor } from "@/lib/product";
 import { timeAgo } from "@/lib/format";
 import RateProductDialog from "@/components/RateProductDialog";
 import type { Order, OrderStatus } from "@/types";
@@ -112,6 +114,44 @@ function OrderCard({ order, buyerName }: { order: Order; buyerName: string }) {
     }
   };
 
+  const { addItem, updateQuantity, clear } = useCart();
+  const [reordering, setReordering] = useState(false);
+  const [reorderMsg, setReorderMsg] = useState<string | null>(null);
+  const [reorderConflict, setReorderConflict] = useState(false);
+
+  const doReorder = async (afterClear = false) => {
+    setReordering(true);
+    setReorderMsg(null);
+    try {
+      let added = 0;
+      let unavailable = 0;
+      if (afterClear) clear();
+      for (const it of order.items) {
+        const product = await getProduct(it.productId);
+        const stock = product ? stockFor(product, it.optionName) : 0;
+        if (!product || !product.isActive || stock <= 0) {
+          unavailable++;
+          continue;
+        }
+        const result = addItem(product, product.shopId, it.optionName);
+        if (result === "different-shop") {
+          setReorderConflict(true);
+          return;
+        }
+        const qty = Math.min(it.quantity, stock);
+        if (qty > 1) updateQuantity(product.id, qty, it.optionName);
+        added++;
+      }
+      setReorderMsg(
+        unavailable > 0
+          ? `Added ${added} of ${order.items.length} items — ${unavailable} no longer available.`
+          : `Added ${added} item${added === 1 ? "" : "s"} to cart.`
+      );
+    } finally {
+      setReordering(false);
+    }
+  };
+
   return (
     <li className="border border-line rounded-2xl bg-surface p-5">
       <div className="flex items-center justify-between">
@@ -199,6 +239,35 @@ function OrderCard({ order, buyerName }: { order: Order; buyerName: string }) {
       >
         {timeAgo(order.createdAt)}
       </p>
+
+      <div className="flex items-center gap-2 mt-3">
+        <button
+          onClick={() => doReorder()}
+          disabled={reordering}
+          className="text-sm rounded-full border border-line px-4 py-1.5 hover:border-ink/40 transition-colors disabled:opacity-60"
+        >
+          {reordering ? "Adding…" : "Reorder"}
+        </button>
+        <Link
+          href={`/orders/${order.id}/invoice`}
+          className="text-sm rounded-full border border-line px-4 py-1.5 hover:border-ink/40 transition-colors"
+        >
+          Invoice
+        </Link>
+      </div>
+      {reorderMsg && <p className="text-sm text-green mt-2">{reorderMsg}</p>}
+
+      <ConfirmDialog
+        open={reorderConflict}
+        title="Switch shop?"
+        message="Your cart has items from a different shop. Clear your cart and add this order's items instead?"
+        confirmLabel="Clear & Add"
+        onCancel={() => setReorderConflict(false)}
+        onConfirm={() => {
+          setReorderConflict(false);
+          doReorder(true);
+        }}
+      />
     </li>
   );
 }
