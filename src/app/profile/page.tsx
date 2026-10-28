@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
-import { getSociety, listSocieties } from "@/lib/data";
+import { getSociety, listSocieties, deleteMyAccount } from "@/lib/data";
 import type { Society } from "@/types";
 
 function ProfileView() {
@@ -20,6 +21,22 @@ function ProfileView() {
   const [flatNumber, setFlatNumber] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const doDeleteAccount = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteMyAccount();
+      await signOut();
+      router.push("/");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Could not delete your account.");
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (profile?.societyId) getSociety(profile.societyId).then((s) => setSocietyName(s?.name ?? ""));
@@ -91,6 +108,24 @@ function ProfileView() {
           >
             Log out
           </button>
+
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="mt-4 block text-sm text-muted hover:text-danger"
+          >
+            Delete my account
+          </button>
+          {deleteError && <p className="text-sm text-danger mt-2">{deleteError}</p>}
+
+          <ConfirmDialog
+            open={confirmingDelete}
+            title="Delete your account?"
+            message="This permanently deletes your profile, and if you have a shop, your shop and all its products and KYC documents. Your past orders are kept as transaction records. This can't be undone."
+            confirmLabel={deleting ? "Deleting…" : "Delete my account"}
+            cancelLabel="Cancel"
+            onConfirm={doDeleteAccount}
+            onCancel={() => setConfirmingDelete(false)}
+          />
         </>
       ) : (
         <form onSubmit={save} className="space-y-4">

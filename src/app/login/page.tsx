@@ -225,6 +225,14 @@ export default function LoginPage() {
         </form>
       )}
 
+      <p className="text-center text-xs text-muted mt-6">
+        <a href="/privacy" className="underline">Privacy Policy</a>
+        {" · "}
+        <a href="/terms" className="underline">Terms</a>
+        {" · "}
+        <a href="/delete-account" className="underline">Delete your account</a>
+      </p>
+
       <style jsx global>{`
         .input {
           width: 100%;

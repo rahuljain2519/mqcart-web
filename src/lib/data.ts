@@ -1484,6 +1484,19 @@ export async function adminDeleteSeller(uid: string): Promise<void> {
   await fn({ uid });
 }
 
+/** Self-service, irreversible: deletes the caller's own account entirely
+ *  (not a reset-to-buyer like adminDeleteSeller) - the Firestore user doc
+ *  AND the Firebase Auth identity. Takes no uid - always acts on whoever
+ *  is currently signed in. See deleteMyAccount in functions/index.js for
+ *  exactly what's removed vs. deliberately retained (orders). */
+export async function deleteMyAccount(): Promise<void> {
+  const fn = httpsCallable<Record<string, never>, { success: boolean }>(
+    functions,
+    "deleteMyAccount"
+  );
+  await fn({});
+}
+
 /** Admin-only, one-time per seller: creates a Razorpay Route linked account
  *  from the seller's existing application KYC + their Shop Settings email.
  *  See createSellerRouteAccount in functions/index.js. */
