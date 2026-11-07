@@ -143,7 +143,7 @@ export async function createShop(input: {
     address: "",
     phone: "",
     plan: "free",
-    productLimit: 10,
+    productLimit: 200,
     productCount: existing?.productCount ?? 0,
     transactionFeePercent: 0,
     isActive: false,
@@ -500,7 +500,7 @@ export async function validateProductLimit(shopId: string) {
   if (!snap.exists()) throw new Error("Shop not found.");
   const d = snap.data();
   const count = Number(d.productCount ?? 0);
-  const limit = Number(d.productLimit ?? 10);
+  const limit = Number(d.productLimit ?? 200);
   if (count >= limit) {
     throw new Error(
       `You've reached your plan's limit of ${limit} products. Upgrade to add more.`
